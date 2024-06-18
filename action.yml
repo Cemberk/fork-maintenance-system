@@ -1,0 +1,59 @@
+name: "Fork Maintenance System"
+description: "A GitHub Action to maintain forked repositories by checking for misspellings and resolving merge conflicts from upstream PRs."
+author: "Cemberk"
+inputs:
+  github_token:
+    description: "GitHub token for authentication"
+    required: true
+  upstream_repo:
+    description: "URL of the upstream repository"
+    required: true
+  upstream_branch:
+    description: "Branch of the upstream repository to merge from"
+    required: true
+runs:
+  using: "composite"
+  steps:
+    - name: Check out code
+      uses: actions/checkout@v4
+
+    - name: Set up Git
+      run: |
+        git config --global user.name 'github-actions[bot]'
+        git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+    
+    - name: Add upstream remote
+      run: |
+        git remote add upstream ${{ inputs.upstream_repo }}
+    
+    - name: Fetch upstream changes
+      run: git fetch upstream
+    
+    - name: Attempt to merge upstream branch
+      run: |
+        git merge upstream/${{ inputs.upstream_branch }} || true
+
+    - name: Check for merge conflicts
+      id: check_conflicts
+      run: |
+        if git ls-files -u | grep -q '^'; then
+          echo "Merge conflicts detected."
+          echo "conflicts=true" >> $GITHUB_ENV
+        else
+          echo "No merge conflicts."
+          echo "conflicts=false" >> $GITHUB_ENV
+          
+    - name: Handle merge conflicts with reviewdog
+      if: env.conflicts == 'true'
+      run: |
+        git ls-files -u | awk '{print $4}' | sort -u | while read -r file; do
+          echo "Handling conflict in $file"
+          cat $file | reviewdog -f=diff -name="merge conflict resolver" -reporter=github-pr-review -filter-mode=nofilter
+        done
+    
+    - name: Commit suggestions
+      if: env.conflicts == 'true'
+      run: |
+        git add .
+        git commit -m "Resolve merge conflicts using reviewdog"
+        git push origin HEAD:${{ github.head_ref }}
