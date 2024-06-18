@@ -1,0 +1,18 @@
+name: Scheduled Fork Maintenance
+
+on:
+  schedule:
+    - cron: '0 0 * * 1' # Runs every Monday at midnight
+
+jobs:
+  scheduled-fork-maintenance:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Scheduled Fork Maintenance System
+        uses: User/Fork-Maintenance-System@main # Replace 'User' with your GitHub username or organization
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          upstream_repo: "https://github.com/original/repo.git" # Replace with actual upstream repo URL
+          upstream_branch: "v4.40-release"
+          internal_branch: "main"
+          pr_branch_prefix: "scheduled-merge"
