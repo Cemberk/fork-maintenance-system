@@ -1,0 +1,58 @@
+name: Fork Maintenance
+
+on: [pull_request]
+
+jobs:
+  misspell:
+    name: runner / misspell
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+      - name: Check for misspellings
+        uses: reviewdog/action-misspell@v1
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          locale: "US"
+          pattern: "*.md"
+
+  merge_conflict:
+    name: runner / merge conflict resolution
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+      - name: Set up Git
+        run: |
+          git config --global user.name 'github-actions[bot]'
+          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+      - name: Add upstream remote
+        run: git remote add upstream https://github.com/original/repo.git # Replace with actual upstream repo URL
+      - name: Fetch upstream changes
+        run: git fetch upstream
+      - name: Attempt to merge upstream branch
+        run: |
+          git merge upstream/v4.40-release || true
+      - name: Check for merge conflicts
+        id: check_conflicts
+        run: |
+          if git ls-files -u | grep -q '^'; then
+            echo "Merge conflicts detected."
+            echo "conflicts=true" >> $GITHUB_ENV
+          else
+            echo "No merge conflicts."
+            echo "conflicts=false" >> $GITHUB_ENV
+          fi
+      - name: Handle merge conflicts with reviewdog
+        if: env.conflicts == 'true'
+        run: |
+          git ls-files -u | awk '{print $4}' | sort -u | while read -r file; do
+            echo "Handling conflict in $file"
+            cat $file | reviewdog -f=diff -name="merge conflict resolver" -reporter=github-pr-review -filter-mode=nofilter
+          done
+      - name: Commit suggestions
+        if: env.conflicts == 'true'
+        run: |
+          git add .
+          git commit -m "Resolve merge conflicts using reviewdog"
+          git push origin HEAD:${{ github.head_ref }}
