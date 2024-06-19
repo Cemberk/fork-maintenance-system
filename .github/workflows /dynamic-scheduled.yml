@@ -67,4 +67,4 @@ jobs:
           upstream_branch: "v4.40-release"
           internal_branch: "main"
           pr_branch_prefix: "scheduled-merge"
-          regression_triage_script: "path/to/regressionTriage.sh" # Adjust the path as needed
+          
