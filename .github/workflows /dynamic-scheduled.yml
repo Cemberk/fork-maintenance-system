@@ -1,0 +1,70 @@
+name: Dynamic Schedule Workflow
+
+on:
+  schedule:
+    - cron: '0 0 * * *' # Runs every day at midnight UTC
+
+jobs:
+  schedule_job:
+    runs-on: ubuntu-latest
+    env:
+      SCHEDULE_CONFIG: ${{ secrets.SCHEDULE_CONFIG }} # Or use an environment variable
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Read schedule configuration
+        id: read_config
+        run: echo "${{ env.SCHEDULE_CONFIG }}" > schedule.json
+
+      - name: Parse and use schedule data
+        id: parse_schedule
+        run: |
+          SCHEDULE_FILE=schedule.json
+          SCHEDULE=$(cat $SCHEDULE_FILE)
+          echo "Schedule: $SCHEDULE"
+
+          # Loop through each event in the schedule
+          for row in $(jq -c '.events[]' $SCHEDULE_FILE); do
+            NAME=$(echo $row | jq -r '.name')
+            CRON=$(echo $row | jq -r '.cron')
+            LAST_RUN=$(echo $row | jq -r '.last_run')
+            
+            # Convert CRON to next run date
+            NEXT_RUN=$(date -d "$(echo "$LAST_RUN $CRON" | at -q a -f - 2>&1 | grep "job" | awk '{print $6,$7,$8,$9,$10,$11}')" +"%Y-%m-%dT%H:%M:%SZ")
+
+            # Get the current date
+            CURRENT_DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+
+            if [[ "$CURRENT_DATE" > "$NEXT_RUN" ]]; then
+              echo "Event $NAME needs to run. Last run: $LAST_RUN, Next run: $NEXT_RUN, Current date: $CURRENT_DATE"
+              echo "::set-output name=event::$NAME"
+              echo "::set-output name=last_run::$LAST_RUN"
+              break
+            fi
+          done
+
+      - name: Update schedule configuration
+        if: success()
+        run: |
+          SCHEDULE_FILE=schedule.json
+          NEW_DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+          jq --arg name "${{ steps.parse_schedule.outputs.event }}" --arg date "$NEW_DATE" '.events[] | select(.name == $name) | .last_run = $date' $SCHEDULE_FILE > tmp.$$.json && mv tmp.$$.json $SCHEDULE_FILE
+
+      - name: Commit updated schedule
+        uses: stefanzweifel/git-auto-commit-action@v4
+        with:
+          commit_message: Update schedule
+          file_pattern: schedule.json
+
+      - name: Fork Maintenance System
+        if: steps.parse_schedule.outputs.event == 'weekly_backup' || steps.parse_schedule.outputs.event == 'monthly_report'
+        uses: User/Fork-Maintenance-System@main # Replace 'User' with your GitHub username or organization
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          upstream_repo: "https://github.com/original/repo.git" # Replace with actual upstream repo URL
+          upstream_branch: "v4.40-release"
+          internal_branch: "main"
+          pr_branch_prefix: "scheduled-merge"
+          regression_triage_script: "path/to/regressionTriage.sh" # Adjust the path as needed
