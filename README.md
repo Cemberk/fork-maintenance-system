@@ -42,7 +42,7 @@ jobs:
           upstream_branch: "v4.40-release"
           internal_branch: "main"
           pr_branch_prefix: "scheduled-merge"
-
+```
 
 ### Dynamic Schedule Input
 
