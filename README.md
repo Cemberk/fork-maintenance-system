@@ -42,3 +42,24 @@ jobs:
           upstream_branch: "v4.40-release"
           internal_branch: "main"
           pr_branch_prefix: "scheduled-merge"
+
+
+### Dynamic Schedule Input
+
+```json
+{
+  "events": [
+    {
+      "name": "weekly_backup",
+      "cron": "0 0 * * 1",
+      "last_run": "2023-06-12T00:00:00Z"
+    },
+    {
+      "name": "monthly_report",
+      "cron": "0 0 1 * *",
+      "last_run": "2023-06-01T00:00:00Z"
+    }
+  ]
+}
+```
+
