@@ -1,5 +1,5 @@
 name: "Fork Maintenance System"
-description: "A GitHub Action to maintain forked repositories by checking for misspellings and resolving merge conflicts from upstream PRs."
+description: "A GitHub Action to maintain forked repositories by checking for misspellings, resolving merge conflicts, running regression triage, and providing code suggestions."
 author: "Cemberk"
 inputs:
   github_token:
@@ -17,6 +17,9 @@ inputs:
   pr_branch_prefix:
     description: "Prefix for the PR branch name"
     required: true
+#  regression_triage_test_script:
+#    description: "triage script for unit tests"
+#    required: true
 runs:
   using: "composite"
   steps:
@@ -52,23 +55,11 @@ runs:
         else
           echo "No merge conflicts."
           echo "conflicts=false" >> $GITHUB_ENV
-          
-    - name: Handle merge conflicts with reviewdog
-      if: env.conflicts == 'true'
-      run: |
-        git ls-files -u | awk '{print $4}' | sort -u | while read -r file; do
-          echo "Handling conflict in $file"
-          cat $file | reviewdog -f=diff -name="merge conflict resolver" -reporter=github-pr-review -filter-mode=nofilter
-        done
-    
-    - name: Commit suggestions
-      if: env.conflicts == 'true'
+
+    - name: Commit merge
       run: |
         git add .
-        git commit -m "Resolve merge conflicts using reviewdog"
-    
-    - name: Push branch
-      run: |
+        git commit -m "Merged upstream changes from ${{ inputs.upstream_branch }} into ${{ inputs.pr_branch_prefix }}"
         git push origin HEAD:${{ inputs.pr_branch_prefix }}-$(date +%Y%m%d)
     
     - name: Create Pull Request
@@ -79,3 +70,22 @@ runs:
         head: ${{ inputs.pr_branch_prefix }}-$(date +%Y%m%d)
         title: "Automated PR: Merge upstream/${{ inputs.upstream_branch }} into ${{ inputs.internal_branch }}"
         body: "This PR was created automatically by the Fork Maintenance System to merge changes from upstream/${{ inputs.upstream_branch }} into ${{ inputs.internal_branch }}."
+        draft: false
+
+    - name: Run reviewdog to suggest conflict resolutions
+      if: env.conflicts == 'true'
+      uses: reviewdog/action-suggester@v1
+      with:
+        github_token: ${{ inputs.github_token }}
+        tool_name: 'merge-conflict-suggester'
+        level: 'warning'
+        filter_mode: 'diff_context'
+        fail_on_error: 'false'
+        cleanup: 'true'
+
+#    - name: Run regression triage
+#      run: |
+#        chmod +x ${{ inputs.regression_triage_test_script }}
+#        ./${{ inputs.regression_triage_test_script }}
+#      env:
+#        GITHUB_TOKEN: ${{ inputs.github_token }}
