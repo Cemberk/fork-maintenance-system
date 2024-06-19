@@ -60,7 +60,7 @@ jobs:
 
       - name: Fork Maintenance System
         if: steps.parse_schedule.outputs.event == 'weekly_backup' || steps.parse_schedule.outputs.event == 'monthly_report'
-        uses: Cemberk/Fork-Maintenance-System@main # Replace 'User' with your GitHub username or organization
+        uses: Cemberk/Fork-Maintenance-System@main 
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           upstream_repo: "https://github.com/original/repo.git" # Replace with actual upstream repo URL
