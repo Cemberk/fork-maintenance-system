@@ -2,9 +2,9 @@
 action automations to help support fork maintenance
 
 # Roadmap
-- [] merge conflict resolution button function
-- [] cadence workflow variables and execution for create and update
-- [] triage testing issues with upstream 
+- [X] merge conflict resolution button function
+- [X] cadence workflow variables and execution for create and update
+- [ ] triage testing issues with upstream 
 
 # Fork Maintenance GitHub Action
 
