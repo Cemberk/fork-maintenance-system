@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Fork Maintenance System
-        uses: User/Fork-Maintenance-System@main # Replace 'User' with your GitHub username or organization
+        uses: Cemberk/Fork-Maintenance-System@main 
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           upstream_repo: "https://github.com/original/repo.git" # Replace with actual upstream repo URL
