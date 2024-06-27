@@ -30,21 +30,26 @@ runs:
       run: |
         git config --global user.name 'github-actions[bot]'
         git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+      shell: bash
     
     - name: Add upstream remote
       run: |
         git remote add upstream ${{ inputs.upstream_repo }}
+      shell: bash
     
     - name: Fetch upstream changes
       run: git fetch upstream
+      shell: bash
     
     - name: Create new branch
       run: |
         git checkout -b ${{ inputs.pr_branch_prefix }}-$(date +%Y%m%d)
+      shell: bash
     
     - name: Attempt to merge upstream branch
       run: |
         git merge upstream/${{ inputs.upstream_branch }} || true
+      shell: bash
 
     - name: Check for merge conflicts
       id: check_conflicts
@@ -55,12 +60,14 @@ runs:
         else
           echo "No merge conflicts."
           echo "conflicts=false" >> $GITHUB_ENV
+      shell: bash
 
     - name: Commit merge
       run: |
         git add .
         git commit -m "Merged upstream changes from ${{ inputs.upstream_branch }} into ${{ inputs.pr_branch_prefix }}"
         git push origin HEAD:${{ inputs.pr_branch_prefix }}-$(date +%Y%m%d)
+      shell: bash
     
     - name: Create Pull Request
       uses: peter-evans/create-pull-request@v4
@@ -82,6 +89,7 @@ runs:
         filter_mode: 'diff_context'
         fail_on_error: 'false'
         cleanup: 'true'
+
 
 #    - name: Run regression triage
 #      run: |
