@@ -17,9 +17,6 @@ inputs:
   pr_branch_prefix:
     description: "Prefix for the PR branch name"
     required: true
-#  regression_triage_test_script:
-#    description: "triage script for unit tests"
-#    required: true
 runs:
   using: "composite"
   steps:
@@ -68,11 +65,13 @@ runs:
         git commit -m "Merged upstream changes from ${{ inputs.upstream_branch }} into ${{ inputs.pr_branch_prefix }}"
         git push origin HEAD:${{ inputs.pr_branch_prefix }}-$(date +%Y%m%d)
       shell: bash
+      env:
+        GITHUB_TOKEN: ${{ secrets.PAT }}  # Use the PAT secret here
     
     - name: Create Pull Request
       uses: peter-evans/create-pull-request@v4
       with:
-        token: ${{ inputs.github_token }}
+        token: ${{ secrets.PAT }}  # Use the PAT secret here
         base: ${{ inputs.internal_branch }}
         head: ${{ inputs.pr_branch_prefix }}-$(date +%Y%m%d)
         title: "Automated PR: Merge upstream/${{ inputs.upstream_branch }} into ${{ inputs.internal_branch }}"
@@ -83,13 +82,18 @@ runs:
       if: env.conflicts == 'true'
       uses: reviewdog/action-suggester@v1
       with:
-        github_token: ${{ inputs.github_token }}
+        github_token: ${{ secrets.PAT }}  # Use the PAT secret here
         tool_name: 'merge-conflict-suggester'
         level: 'warning'
         filter_mode: 'diff_context'
         fail_on_error: 'false'
         cleanup: 'true'
 
+
+    
+#  regression_triage_test_script:
+#    description: "triage script for unit tests"
+#    required: true
 
 #    - name: Run regression triage
 #      run: |
