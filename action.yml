@@ -2,6 +2,7 @@ name: "Fork Maintenance System"
 description: "A GitHub Action to maintain forked repositories by checking for misspellings, resolving merge conflicts, running regression triage, and providing code suggestions."
 author: "Cemberk"
 
+
 inputs:
   github_token:
     description: "GitHub token for authentication"
@@ -9,11 +10,8 @@ inputs:
   upstream_repo:
     description: "URL of the upstream repository"
     required: true
-  upstream_branch:
-    description: "Branch of the upstream repository to merge from"
-    required: true
-  internal_branch:
-    description: "Branch for internal cadence"
+  schedule_json:
+    description: "Schedule JSON containing upstream and downstream release branches"
     required: true
   pr_branch_prefix:
     description: "Prefix for the PR branch name"
@@ -30,6 +28,25 @@ runs:
         git config --global user.name 'github-actions[bot]'
         git config --global user.email 'github-actions[bot]@users.noreply.github.com'
       shell: bash
+
+    - name: Fetch schedule JSON
+      run: echo '${{ inputs.schedule_json }}' > schedule.json
+      shell: bash
+
+    - name: Extract branch information
+      id: extract_branches
+      run: |
+        export UPSTREAM_MAIN=$(jq -r '.upstream_main_branch' schedule.json)
+        export UPSTREAM_RELEASE=$(jq -r '.upstream_release_branch' schedule.json)
+        export DOWNSTREAM_TESTING=$(jq -r '.downstream_testing_branch' schedule.json)
+        export DOWNSTREAM_DEVELOP=$(jq -r '.downstream_develop_branch' schedule.json)
+        export COMMITS=$(jq -r '.commits[]' schedule.json)
+        echo "UPSTREAM_MAIN=$UPSTREAM_MAIN" >> $GITHUB_ENV
+        echo "UPSTREAM_RELEASE=$UPSTREAM_RELEASE" >> $GITHUB_ENV
+        echo "DOWNSTREAM_TESTING=$DOWNSTREAM_TESTING" >> $GITHUB_ENV
+        echo "DOWNSTREAM_DEVELOP=$DOWNSTREAM_DEVELOP" >> $GITHUB_ENV
+        echo "COMMITS=$COMMITS" >> $GITHUB_ENV
+      shell: bash
     
     - name: Add upstream remote
       run: |
@@ -44,10 +61,16 @@ runs:
       run: |
         git checkout -b ${{ inputs.pr_branch_prefix }}-$(date +%Y%m%d)
       shell: bash
-    
-    - name: Attempt to merge upstream branch
+
+    - name: Create new branch from upstream release
       run: |
-        git merge upstream/${{ inputs.upstream_branch }} || true
+        git checkout upstream/$UPSTREAM_RELEASE
+        git checkout -b ${{ inputs.pr_branch_prefix }}-$(date +%Y%m%d)
+      shell: bash
+
+    - name: Attempt to merge upstream main into new branch
+      run: |
+        git merge upstream/$UPSTREAM_MAIN || true
       shell: bash
 
     - name: Check for merge conflicts
@@ -65,12 +88,13 @@ runs:
       if: env.conflicts == 'false'
       run: |
         git add .
-        git commit -m "Merged upstream changes from ${{ inputs.upstream_branch }} into ${{ inputs.pr_branch_prefix }}"
+        git commit -m "Merged upstream main into ${{ inputs.pr_branch_prefix }} branch from $UPSTREAM_RELEASE"
         git push origin HEAD:${{ inputs.pr_branch_prefix }}-$(date +%Y%m%d)
       shell: bash
       env:
         GITHUB_TOKEN: ${{ inputs.github_token }}
-    
+
+      
     - name: Create Pull Request
       if: env.conflicts == 'false'
       uses: peter-evans/create-pull-request@v4
@@ -78,7 +102,7 @@ runs:
         token: ${{ inputs.github_token }}
         base: ${{ inputs.internal_branch }}
         head: ${{ inputs.pr_branch_prefix }}-$(date +%Y%m%d)
-        title: "Automated PR: Merge upstream/${{ inputs.upstream_branch }} into ${{ inputs.internal_branch }}"
+        title: "Automated PR: Merge upstream/${ UPSTREAM_RELEASE } into ${ DOWNSTREAM_DEVELOP }"
         body: "This PR was created automatically by the Fork Maintenance System to merge changes from upstream/${{ inputs.upstream_branch }} into ${{ inputs.internal_branch }}."
         draft: false
 
@@ -93,6 +117,18 @@ runs:
         fail_on_error: 'false'
         cleanup: 'true'
 
+
+# Example schedule.json
+# {
+#   "upstream_main_branch": "main",
+#   "upstream_release_branch": "release-v1.0",
+#   "downstream_testing_branch": "v6.3testing",
+#   "downstream_develop_branch": "develop",
+#   "commits": [
+#     "abcd1234",
+#     "efgh5678"
+#   ]
+# }
 
 
     
