@@ -1,3 +1,4 @@
+# © 2024 Cemberk. All rights reserved.
 name: "Fork Maintenance System"
 description: "A GitHub Action to maintain forked repositories by checking for misspellings, resolving merge conflicts, running regression triage, and providing code suggestions."
 author: "Cemberk"
