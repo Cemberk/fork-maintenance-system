@@ -17,6 +17,12 @@ inputs:
   pr_branch_prefix:
     description: "Prefix for the PR branch name"
     required: true
+  unit_test_command:
+    description: "Command to run unit tests"
+    required: true
+  performance_test_command:
+    description: "Command to run performance tests"
+    required: true
 
 runs:
   using: "composite"
@@ -39,13 +45,15 @@ runs:
       run: |
         export UPSTREAM_MAIN=$(jq -r '.upstream_main_branch' schedule.json)
         export UPSTREAM_RELEASE=$(jq -r '.upstream_release_branch' schedule.json)
-        export DOWNSTREAM_TESTING=$(jq -r '.downstream_testing_branch' schedule.json)
+        export DOWNSTREAM_MAIN=$(jq -r '.downstream_main_branch' schedule.json)
         export DOWNSTREAM_DEVELOP=$(jq -r '.downstream_develop_branch' schedule.json)
+        export DOWNSTREAM_TESTING=$(jq -r '.downstream_testing_branch' schedule.json)
         export COMMITS=$(jq -r '.commits[]' schedule.json)
         echo "UPSTREAM_MAIN=$UPSTREAM_MAIN" >> $GITHUB_ENV
         echo "UPSTREAM_RELEASE=$UPSTREAM_RELEASE" >> $GITHUB_ENV
         echo "DOWNSTREAM_TESTING=$DOWNSTREAM_TESTING" >> $GITHUB_ENV
         echo "DOWNSTREAM_DEVELOP=$DOWNSTREAM_DEVELOP" >> $GITHUB_ENV
+        echo "DOWNSTREAM_MAIN=$DOWNSTREAM_MAIN" >> $GITHUB_ENV
         echo "COMMITS=$COMMITS" >> $GITHUB_ENV
       shell: bash
     
@@ -55,58 +63,84 @@ runs:
       shell: bash
     
     - name: Fetch upstream changes
-      run: git fetch upstream
+      run: |
+        git fetch upstream
+        git checkout upstream/$UPSTREAM_MAIN
       shell: bash
     
-    - name: Create new branch
+    #- name: Create new branch
+    #  run: |
+    #    git checkout -b ${{ inputs.pr_branch_prefix }}-$(date +%Y%m%d)
+    #  shell: bash
+
+    #Upstream sync pr 
+    - name: Create Pull Request for upstream sync
+      uses: peter-evans/create-pull-request@v4
+      id: create_pr_upstream_sync
+      with:
+        token: ${{ inputs.github_token }}
+        base: ${{ inputs.downstream_main_branch }}
+        head: upstream/${{ inputs.upstream_main_branch }}
+        title: "Automated PR: Upstream Sync into ${ DOWNSTREAM_MAIN }"
+        body: "This PR was created automatically by the Fork Maintenance System to sync changes from the upstream main into the downstream main."
+        draft: false
+
+    - name: Run unit tests for upstream sync
       run: |
-        git checkout -b ${{ inputs.pr_branch_prefix }}-$(date +%Y%m%d)
+        echo "Running unit tests for upstream sync..."
+        UNIT_TEST_RESULTS=$(eval "${{ inputs.unit_test_command }} 2>&1")
+        echo "Unit Test Results: $UNIT_TEST_RESULTS"
+        echo "UNIT_TEST_RESULTS=$UNIT_TEST_RESULTS" >> $GITHUB_ENV
       shell: bash
 
-    - name: Create new branch from upstream release
+    - name: Run performance tests for upstream sync
       run: |
-        git checkout upstream/$UPSTREAM_RELEASE
-        git checkout -b ${{ inputs.pr_branch_prefix }}-$(date +%Y%m%d)
+        echo "Running performance tests for upstream sync..."
+        PERFORMANCE_TEST_RESULTS=$(eval "${{ inputs.performance_test_command }} 2>&1")
+        echo "Performance Test Results: $PERFORMANCE_TEST_RESULTS"
+        echo "PERFORMANCE_TEST_RESULTS=$PERFORMANCE_TEST_RESULTS" >> $GITHUB_ENV
       shell: bash
 
-    - name: Attempt to merge upstream main into new branch
+    - name: Comment test results on upstream sync PR
       run: |
-        git merge upstream/$UPSTREAM_MAIN || true
-      shell: bash
-
-    - name: Check for merge conflicts
-      id: check_conflicts
-      run: |
-        if git ls-files -u | grep -q '^'; then
-          echo "Merge conflicts detected."
-          echo "conflicts=true" >> $GITHUB_ENV
-        else
-          echo "No merge conflicts."
-          echo "conflicts=false" >> $GITHUB_ENV
-      shell: bash
-
-    - name: Commit merge
-      if: env.conflicts == 'false'
-      run: |
-        git add .
-        git commit -m "Merged upstream main into ${{ inputs.pr_branch_prefix }} branch from $UPSTREAM_RELEASE"
-        git push origin HEAD:${{ inputs.pr_branch_prefix }}-$(date +%Y%m%d)
+        UNIT_TEST_COMMENT="### Unit Test Results\n\`\`\`\n${UNIT_TEST_RESULTS}\n\`\`\`"
+        PERFORMANCE_TEST_COMMENT="### Performance Test Results\n\`\`\`\n${PERFORMANCE_TEST_RESULTS}\n\`\`\`"
+        PR_URL_UPSTREAM_SYNC=$(jq -r '.html_url' ${{ steps.create_pr_upstream_sync.outputs.pull_request }})
+        echo "Commenting test results on upstream sync PR..."
+        gh pr comment $PR_URL_UPSTREAM_SYNC -b "$UNIT_TEST_COMMENT\n\n$PERFORMANCE_TEST_COMMENT"
       shell: bash
       env:
         GITHUB_TOKEN: ${{ inputs.github_token }}
+        UNIT_TEST_RESULTS: ${{ env.UNIT_TEST_RESULTS }}
+        PERFORMANCE_TEST_RESULTS: ${{ env.PERFORMANCE_TEST_RESULTS }}
 
-      
-    - name: Create Pull Request
-      if: env.conflicts == 'false'
-      uses: peter-evans/create-pull-request@v4
-      with:
-        token: ${{ inputs.github_token }}
-        base: ${{ inputs.internal_branch }}
-        head: ${{ inputs.pr_branch_prefix }}-$(date +%Y%m%d)
-        title: "Automated PR: Merge upstream/${ UPSTREAM_RELEASE } into ${ DOWNSTREAM_DEVELOP }"
-        body: "This PR was created automatically by the Fork Maintenance System to merge changes from upstream/${{ inputs.upstream_branch }} into ${{ inputs.internal_branch }}."
-        draft: false
+    #rebase from main to develop 
+    - name: Attempt to rebase upstream main into develop
+      run: |
+        git checkout $DOWNSTREAM_DEVELOP
+        git checkout -b tmp-${DOWNSTREAM_DEVELOP}-$(date +%Y%m%d)
+        git rebase upstream/$UPSTREAM_MAIN || true
+      shell: bash
 
+    - name: Check for rebase conflicts
+      id: check_conflicts
+      run: |
+        if git ls-files -u | grep -q '^'; then
+          echo "Rebase conflicts detected."
+          echo "conflicts=true" >> $GITHUB_ENV
+        else
+          echo "No rebase conflicts."
+          echo "conflicts=false" >> $GITHUB_ENV
+      shell: bash
+
+    #push the rebased branch to develop 
+    - name: Push rebased branch
+      run: |
+        git push origin tmp-${DOWNSTREAM_DEVELOP}-$(date +%Y%m%d)
+      shell: bash
+      env:
+        GITHUB_TOKEN: ${{ inputs.github_token }}
+    
     - name: Run reviewdog to suggest conflict resolutions
       if: env.conflicts == 'true'
       uses: reviewdog/action-suggester@v1
@@ -117,6 +151,105 @@ runs:
         filter_mode: 'diff_context'
         fail_on_error: 'false'
         cleanup: 'true'
+
+    - name: Create Pull Request for Downstream develop
+      if: env.conflicts == 'false'
+      uses: peter-evans/create-pull-request@v4
+      id: create_pr_develop
+      with:
+        token: ${{ inputs.github_token }}
+        base: ${{ inputs.downstream_develop_branch }}
+        head: tmp-${DOWNSTREAM_DEVELOP}-$(date +%Y%m%d)
+        title: "Automated PR: Rebase ${ UPSTREAM_MAIN } into ${ DOWNSTREAM_DEVELOP }"
+        body: "This PR was created automatically by the Fork Maintenance System to rebase changes from Downstream main into the develop branch."
+        draft: false
+
+    #develop tests 
+    - name: Run unit tests for develop
+      run: |
+        echo "Running unit tests for develop..."
+        UNIT_TEST_RESULTS=$(eval "${{ inputs.unit_test_command }} 2>&1")
+        echo "Unit Test Results: $UNIT_TEST_RESULTS"
+        echo "UNIT_TEST_RESULTS=$UNIT_TEST_RESULTS" >> $GITHUB_ENV
+      shell: bash
+
+    - name: Run performance tests for develop
+      run: |
+        echo "Running performance tests for develop..."
+        PERFORMANCE_TEST_RESULTS=$(eval "${{ inputs.performance_test_command }} 2>&1")
+        echo "Performance Test Results: $PERFORMANCE_TEST_RESULTS"
+        echo "PERFORMANCE_TEST_RESULTS=$PERFORMANCE_TEST_RESULTS" >> $GITHUB_ENV
+      shell: bash
+
+    - name: Comment test results on develop PR
+      run: |
+        UNIT_TEST_COMMENT="### Unit Test Results\n\`\`\`\n${UNIT_TEST_RESULTS}\n\`\`\`"
+        PERFORMANCE_TEST_COMMENT="### Performance Test Results\n\`\`\`\n${PERFORMANCE_TEST_RESULTS}\n\`\`\`"
+        PR_URL_DEVELOP=$(jq -r '.html_url' ${{ steps.create_pr_develop.outputs.pull_request }})
+        echo "Commenting test results on develop PR..."
+        gh pr comment $PR_URL_DEVELOP -b "$UNIT_TEST_COMMENT\n\n$PERFORMANCE_TEST_COMMENT"
+      shell: bash
+      env:
+        GITHUB_TOKEN: ${{ inputs.github_token }}
+        UNIT_TEST_RESULTS: ${{ env.UNIT_TEST_RESULTS }}
+        PERFORMANCE_TEST_RESULTS: ${{ env.PERFORMANCE_TEST_RESULTS }}
+
+
+
+    #cherry pick from develop to new branch release
+    #Downstream develop -> release
+    - name: Create new Downstream release branch from latest release
+      run: |
+        git checkout upstream/$UPSTREAM_RELEASE
+        git checkout -b $DOWNSTREAM_TESTING
+      shell: bash
+
+    - name: Cherry-pick specific commits from develop to release
+      run: |
+        for commit in $COMMITS; do
+          git cherry-pick $commit || true
+        done
+      shell: bash
+
+    #push new branch 
+    - name: Push new testing branch
+      run: |
+        git push origin ${DOWNSTREAM_TESTING}
+      shell: bash
+      env:
+        GITHUB_TOKEN: ${{ inputs.github_token }}
+
+
+    - name: Run unit tests for release
+      run: |
+        echo "Running unit tests for release..."
+        UNIT_TEST_RESULTS=$(eval "${{ inputs.unit_test_command }} 2>&1")
+        echo "Unit Test Results: $UNIT_TEST_RESULTS"
+        echo "UNIT_TEST_RESULTS=$UNIT_TEST_RESULTS" >> $GITHUB_ENV
+      shell: bash
+
+    - name: Run performance tests for release
+      run: |
+        echo "Running performance tests for release..."
+        PERFORMANCE_TEST_RESULTS=$(eval "${{ inputs.performance_test_command }} 2>&1")
+        echo "Performance Test Results: $PERFORMANCE_TEST_RESULTS"
+        echo "PERFORMANCE_TEST_RESULTS=$PERFORMANCE_TEST_RESULTS" >> $GITHUB_ENV
+      shell: bash
+
+    - name: Create Issue with test results for release
+      run: |
+        UNIT_TEST_COMMENT="### Unit Test Results\n\`\`\`\n${UNIT_TEST_RESULTS}\n\`\`\`"
+        PERFORMANCE_TEST_COMMENT="### Performance Test Results\n\`\`\`\n${PERFORMANCE_TEST_RESULTS}\n\`\`\`"
+        ISSUE_BODY="${UNIT_TEST_COMMENT}\n\n${PERFORMANCE_TEST_COMMENT}"
+        gh issue create --title "Test Results for Release branch ${DOWNSTREAM_TESTING}" --body "$ISSUE_BODY"
+      shell: bash
+      env:
+        GITHUB_TOKEN: ${{ inputs.github_token }}
+        UNIT_TEST_RESULTS: ${{ env.UNIT_TEST_RESULTS }}
+        PERFORMANCE_TEST_RESULTS: ${{ env.PERFORMANCE_TEST_RESULTS }}
+
+
+
 
 
 # Example schedule.json
