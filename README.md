@@ -12,9 +12,9 @@ This repository contains a custom GitHub Action for maintaining forked repositor
 
 ## Features
 
-- **Misspell Check:** Automatically checks for misspellings in markdown files and suggests fixes.
 - **Merge Conflict Resolution:** Automatically attempts to merge upstream changes and uses reviewdog to suggest fixes for merge conflicts.
 - **Scheduled PRs:** Automatically creates PRs based on the cadence of internal and release branching.
+- **Unit and Performance Testing** Test and report on updates
 
 ## Usage
 
