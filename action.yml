@@ -65,7 +65,7 @@ runs:
     - name: Fetch upstream changes
       run: |
         git fetch upstream
-        git checkout upstream/$UPSTREAM_MAIN
+        git switch -c ${{ inputs.pr_branch_prefix }}-sync-test-$(date +%Y%m%d) upstream/$UPSTREAM_MAIN
       shell: bash
     
     #- name: Create new branch
