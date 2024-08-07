@@ -132,6 +132,11 @@ runs:
     #    git switch -c ${{ inputs.pr_branch_prefix }}-sync-test-$(date +%Y%m%d) upstream/$UPSTREAM_MAIN
     #  shell: bash
 
+    - name: Install dependencies
+      run: |
+        pip install pytest
+      shell: bash
+
     - name: Run unit tests for upstream sync
       run: |
         echo "Running unit tests for upstream sync..."
