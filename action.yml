@@ -69,8 +69,14 @@ runs:
         #git branch
         #git fetch "origin/${{ env.DOWNSTREAM_MAIN }}"
         #git fetch "origin/${{ env.DOWNSTREAM_DEVELOP }}"
-        git checkout "origin/${{ env.DOWNSTREAM_MAIN }}"
+        #git checkout "origin/${{ env.DOWNSTREAM_MAIN }}"
         #git switch -c ${{ inputs.pr_branch_prefix }}-sync-test-$(date +%Y%m%d) upstream/$UPSTREAM_MAIN
+      shell: bash
+
+    - name: Checkout and update downstream main
+      run: |
+        git checkout ${{ env.DOWNSTREAM_MAIN }} || git checkout -b ${{ env.DOWNSTREAM_MAIN }} upstream/${{ env.UPSTREAM_MAIN }}
+        git pull origin ${{ env.DOWNSTREAM_MAIN }}
       shell: bash
 
     - name: Rebase upstream main into downstream main
