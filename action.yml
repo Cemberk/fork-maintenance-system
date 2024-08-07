@@ -86,8 +86,7 @@ runs:
     #    draft: false
 
     - name: Push branch and create PR for upstream sync
-        run: |
-          gh pr create --title "Automated PR: Upstream Sync into ${{ env.DOWNSTREAM_MAIN }}" --body "This PR was created automatically by the Fork Maintenance System to sync changes from the upstream main into the downstream main." --base ${{ env.DOWNSTREAM_MAIN }} --head upstream/${{ inputs.upstream_main_branch }}
+        run: gh pr create --title "Automated PR: Upstream Sync into ${{ env.DOWNSTREAM_MAIN }}" --body "This PR was created automatically by the Fork Maintenance System to sync changes from the upstream main into the downstream main." --base ${{ env.DOWNSTREAM_MAIN }} --head upstream/${{ inputs.upstream_main_branch }}
         env:
           GITHUB_TOKEN: ${{ inputs.github_token }}
         shell: bash
