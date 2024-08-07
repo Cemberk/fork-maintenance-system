@@ -72,6 +72,12 @@ runs:
         git checkout "origin/${{ env.DOWNSTREAM_MAIN }}"
         #git switch -c ${{ inputs.pr_branch_prefix }}-sync-test-$(date +%Y%m%d) upstream/$UPSTREAM_MAIN
       shell: bash
+
+    - name: Rebase upstream main into downstream main
+      run: |
+        git rebase upstream/${{ env.UPSTREAM_MAIN }} || true
+        git checkout -b ${{ inputs.pr_branch_prefix }}-sync-test-$(date +%Y%m%d)
+      shell: bash
     
     #- name: Create new branch
     #  run: |
@@ -85,7 +91,7 @@ runs:
       with:
         token: ${{ inputs.github_token }}
         base: origin/${{ inputs.downstream_main_branch }}
-        head: upstream/${{ inputs.upstream_main_branch }}
+        head: ${{ inputs.pr_branch_prefix }}-$(date +%Y%m%d)
         title: "Automated PR: Upstream Sync into ${ DOWNSTREAM_MAIN }"
         body: "This PR was created automatically by the Fork Maintenance System to sync changes from the upstream main into the downstream main."
         draft: false
