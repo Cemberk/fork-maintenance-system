@@ -96,7 +96,7 @@ runs:
 
     - name: Create Pull Request for upstream sync
       run: |
-        gh pr create --title "Automated PR: Upstream Sync into ${{ env.DOWNSTREAM_MAIN }}" --body "This PR was created automatically by the Fork Maintenance System to sync changes from the upstream main into the downstream main." --base ${{ env.DOWNSTREAM_MAIN }} --branch upstream/${{ env.UPSTREAM_MAIN }}
+        gh pr create --title "Automated PR: Upstream Sync into ${{ env.DOWNSTREAM_MAIN }}" --body "This PR was created automatically by the Fork Maintenance System to sync changes from the upstream main into the downstream main." --base ${{ env.DOWNSTREAM_MAIN }} --head upstream/${{ env.UPSTREAM_MAIN }}
       env:
         GITHUB_TOKEN: ${{ inputs.github_token }}
       shell: bash
