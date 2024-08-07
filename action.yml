@@ -141,6 +141,7 @@ runs:
       run: |
         #pip install -r requirements.txt
         pip install pytest
+        pip install -e .
       shell: bash
 
     - name: Run unit tests for upstream sync
