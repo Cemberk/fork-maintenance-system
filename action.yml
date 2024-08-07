@@ -65,6 +65,7 @@ runs:
     - name: Fetch upstream changes
       run: |
         git fetch upstream
+        git branch
         git fetch "Cemberk/${{ env.DOWNSTREAM_MAIN }}"
         git fetch "Cemberk/${{ env.DOWNSTREAM_DEVELOP }}"
         git checkout "${{ env.DOWNSTREAM_MAIN }}"
