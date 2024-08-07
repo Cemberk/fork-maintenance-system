@@ -132,18 +132,32 @@ runs:
     #    git switch -c ${{ inputs.pr_branch_prefix }}-sync-test-$(date +%Y%m%d) upstream/$UPSTREAM_MAIN
     #  shell: bash
 
-    - name: Install dependencies
-      run: |
-        pip install pytest
-      shell: bash
+    - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: '3.x'
 
-    - name: Run unit tests for upstream sync
-      run: |
-        echo "Running unit tests for upstream sync..."
-        UNIT_TEST_RESULTS=$(eval "${{ inputs.unit_test_command }} 2>&1")
-        echo "Unit Test Results: $UNIT_TEST_RESULTS"
-        echo "UNIT_TEST_RESULTS=$UNIT_TEST_RESULTS" >> $GITHUB_ENV
-      shell: bash
+      - name: Install dependencies
+        run: |
+          #pip install -r requirements.txt
+          pip install pytest
+        shell: bash
+
+      - name: Run unit tests for upstream sync
+        run: |
+          echo "Running unit tests for upstream sync..."
+          ${{ inputs.unit_test_command }} 2>&1 | tee UNIT_TEST_RESULTS.txt
+          echo "Unit Test Results: $(cat UNIT_TEST_RESULTS.txt)"
+          echo "UNIT_TEST_RESULTS=$(cat UNIT_TEST_RESULTS.txt)" >> $GITHUB_ENV
+        shell: bash
+
+    #- name: Run unit tests for upstream sync
+    #  run: |
+    #    echo "Running unit tests for upstream sync..."
+    #    UNIT_TEST_RESULTS=$(eval "${{ inputs.unit_test_command }} 2>&1")
+    #    echo "Unit Test Results: $UNIT_TEST_RESULTS"
+    #    echo "UNIT_TEST_RESULTS=$UNIT_TEST_RESULTS" >> $GITHUB_ENV
+    #  shell: bash
 
     - name: Run performance tests for upstream sync
       run: |
