@@ -80,7 +80,7 @@ runs:
       with:
         token: ${{ inputs.github_token }}
         base: ${{ inputs.downstream_main_branch }}
-        head: upstream/${{ inputs.upstream_main_branch }}
+        branch: upstream/${{ inputs.upstream_main_branch }}
         title: "Automated PR: Upstream Sync into ${ DOWNSTREAM_MAIN }"
         body: "This PR was created automatically by the Fork Maintenance System to sync changes from the upstream main into the downstream main."
         draft: false
