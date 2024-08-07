@@ -51,9 +51,9 @@ runs:
         export COMMITS=$(jq -r '[.commits[]] | join(",")' schedule.json)
         echo "UPSTREAM_MAIN=$UPSTREAM_MAIN" >> $GITHUB_ENV
         echo "UPSTREAM_RELEASE=$UPSTREAM_RELEASE" >> $GITHUB_ENV
-        echo "DOWNSTREAM_TESTING=$DOWNSTREAM_TESTING" >> $GITHUB_ENV
-        echo "DOWNSTREAM_DEVELOP=$DOWNSTREAM_DEVELOP" >> $GITHUB_ENV
         echo "DOWNSTREAM_MAIN=$DOWNSTREAM_MAIN" >> $GITHUB_ENV
+        echo "DOWNSTREAM_DEVELOP=$DOWNSTREAM_DEVELOP" >> $GITHUB_ENV
+        echo "DOWNSTREAM_TESTING=$DOWNSTREAM_TESTING" >> $GITHUB_ENV
         echo "COMMITS=$COMMITS" >> $GITHUB_ENV
       shell: bash
     
