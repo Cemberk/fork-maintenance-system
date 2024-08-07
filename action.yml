@@ -86,16 +86,16 @@ runs:
     #  shell: bash
 
     #Upstream sync pr 
-    - name: Create Pull Request for upstream sync
-      uses: peter-evans/create-pull-request@v4
-      id: create_pr_upstream_sync
-      with:
-        token: ${{ inputs.github_token }}
-        base: origin/${{ inputs.downstream_main_branch }}
-        head: ${{ inputs.pr_branch_prefix }}-$(date +%Y%m%d)
-        title: "Automated PR: Upstream Sync into ${ DOWNSTREAM_MAIN }"
-        body: "This PR was created automatically by the Fork Maintenance System to sync changes from the upstream main into the downstream main."
-        draft: false
+    #- name: Create Pull Request for upstream sync
+    #  uses: peter-evans/create-pull-request@v4
+    #  id: create_pr_upstream_sync
+    #  with:
+    #    token: ${{ inputs.github_token }}
+    #    base: origin/${{ inputs.downstream_main_branch }}
+    #    head: ${{ inputs.pr_branch_prefix }}-$(date +%Y%m%d)
+    #    title: "Automated PR: Upstream Sync into ${ DOWNSTREAM_MAIN }"
+    #    body: "This PR was created automatically by the Fork Maintenance System to sync changes from the upstream main into the downstream main."
+    #    draft: false
 
     #- name: Push branch and create PR for upstream sync
     #    run: gh pr create --title "Automated PR: Upstream Sync into ${{ env.DOWNSTREAM_MAIN }}" --body "This PR was created automatically by the Fork Maintenance System to sync changes from the upstream main into the downstream main." --base ${{ env.DOWNSTREAM_MAIN }} --head upstream/${{ inputs.upstream_main_branch }}
@@ -105,7 +105,8 @@ runs:
 
     - name: Create Pull Request for upstream sync
       run: |
-        gh pr create --title "Automated PR: Upstream Sync into ${{ env.DOWNSTREAM_MAIN }}" --body "This PR was created automatically by the Fork Maintenance System to sync changes from the upstream main into the downstream main." --base origin/${{ env.DOWNSTREAM_MAIN }} --head upstream/${{ env.UPSTREAM_MAIN }}
+        gh pr create --title "Automated PR: Upstream Sync into ${{ env.DOWNSTREAM_MAIN }}" --body "This PR was created automatically by the Fork Maintenance System to sync changes from the upstream main into the downstream main." --base origin/${{ env.DOWNSTREAM_MAIN }} --head ${{ inputs.pr_branch_prefix }}-$(date +%Y%m%d) 
+        #upstream/${{ env.UPSTREAM_MAIN }}
       env:
         GITHUB_TOKEN: ${{ inputs.github_token }}
       shell: bash
