@@ -133,23 +133,23 @@ runs:
     #  shell: bash
 
     - name: Set up Python
-        uses: actions/setup-python@v2
-        with:
-          python-version: '3.x'
+      uses: actions/setup-python@v2
+      with:
+        python-version: '3.x'
 
-      - name: Install dependencies
-        run: |
-          #pip install -r requirements.txt
-          pip install pytest
-        shell: bash
+    - name: Install dependencies
+      run: |
+        #pip install -r requirements.txt
+        pip install pytest
+      shell: bash
 
-      - name: Run unit tests for upstream sync
-        run: |
-          echo "Running unit tests for upstream sync..."
-          ${{ inputs.unit_test_command }} 2>&1 | tee UNIT_TEST_RESULTS.txt
-          echo "Unit Test Results: $(cat UNIT_TEST_RESULTS.txt)"
-          echo "UNIT_TEST_RESULTS=$(cat UNIT_TEST_RESULTS.txt)" >> $GITHUB_ENV
-        shell: bash
+    - name: Run unit tests for upstream sync
+      run: |
+        echo "Running unit tests for upstream sync..."
+        ${{ inputs.unit_test_command }} 2>&1 | tee UNIT_TEST_RESULTS.txt
+        echo "Unit Test Results: $(cat UNIT_TEST_RESULTS.txt)"
+        echo "UNIT_TEST_RESULTS=$(cat UNIT_TEST_RESULTS.txt)" >> $GITHUB_ENV
+      shell: bash
 
     #- name: Run unit tests for upstream sync
     #  run: |
