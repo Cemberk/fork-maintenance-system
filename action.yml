@@ -65,7 +65,7 @@ runs:
     - name: Fetch upstream changes
       run: |
         git fetch upstream
-        git switch -c ${{ inputs.pr_branch_prefix }}-sync-test-$(date +%Y%m%d) upstream/$UPSTREAM_MAIN
+        #git switch -c ${{ inputs.pr_branch_prefix }}-sync-test-$(date +%Y%m%d) upstream/$UPSTREAM_MAIN
       shell: bash
     
     #- name: Create new branch
@@ -84,6 +84,11 @@ runs:
         title: "Automated PR: Upstream Sync into ${ DOWNSTREAM_MAIN }"
         body: "This PR was created automatically by the Fork Maintenance System to sync changes from the upstream main into the downstream main."
         draft: false
+
+    - name: upstream changes
+      run: |
+        git switch -c ${{ inputs.pr_branch_prefix }}-sync-test-$(date +%Y%m%d) upstream/$UPSTREAM_MAIN
+      shell: bash
 
     - name: Run unit tests for upstream sync
       run: |
