@@ -76,9 +76,17 @@ runs:
     - name: Rebase upstream main into downstream main
       run: |
         git rebase upstream/${{ env.UPSTREAM_MAIN }} || true
-        git checkout -b ${{ inputs.pr_branch_prefix }}-sync-test-$(date +%Y%m%d)
-        git push origin ${{ inputs.pr_branch_prefix }}-sync-test-$(date +%Y%m%d)
+        #git checkout -b ${{ inputs.pr_branch_prefix }}-sync-test-$(date +%Y%m%d)
+        #git push origin ${{ inputs.pr_branch_prefix }}-sync-test-$(date +%Y%m%d)
       shell: bash
+
+    - name: Push rebased downstream main
+      run: |
+        git push origin ${{ env.DOWNSTREAM_MAIN }} --force
+      shell: bash
+      env:
+        GITHUB_TOKEN: ${{ inputs.github_token }}
+
     
     #- name: Create new branch
     #  run: |
@@ -105,7 +113,8 @@ runs:
 
     - name: Create Pull Request for upstream sync
       run: |
-        gh pr create --title "Automated PR: Upstream Sync into ${{ env.DOWNSTREAM_MAIN }}" --body "This PR was created automatically by the Fork Maintenance System to sync changes from the upstream main into the downstream main." --base origin/${{ env.DOWNSTREAM_MAIN }} --head ${{ inputs.pr_branch_prefix }}-$(date +%Y%m%d) 
+        gh pr create --title "Automated PR: Upstream Sync into ${{ env.DOWNSTREAM_MAIN }}" --body "This PR was created automatically by the Fork Maintenance System to sync changes from the upstream main into the downstream main." --base origin/${{ env.DOWNSTREAM_MAIN }} --head upstream/${{ env.UPSTREAM_MAIN }}
+        #${{ inputs.pr_branch_prefix }}-sync-test-$(date +%Y%m%d) 
         #upstream/${{ env.UPSTREAM_MAIN }}
       env:
         GITHUB_TOKEN: ${{ inputs.github_token }}
