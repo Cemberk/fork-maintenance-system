@@ -77,6 +77,7 @@ runs:
       run: |
         git rebase upstream/${{ env.UPSTREAM_MAIN }} || true
         git checkout -b ${{ inputs.pr_branch_prefix }}-sync-test-$(date +%Y%m%d)
+        git push origin ${{ inputs.pr_branch_prefix }}-sync-test-$(date +%Y%m%d)
       shell: bash
     
     #- name: Create new branch
