@@ -66,10 +66,10 @@ runs:
       run: |
         git fetch upstream
         git fetch --all
-        git branch
-        git fetch "Cemberk/${{ env.DOWNSTREAM_MAIN }}"
-        git fetch "Cemberk/${{ env.DOWNSTREAM_DEVELOP }}"
-        git checkout "${{ env.DOWNSTREAM_MAIN }}"
+        #git branch
+        #git fetch "origin/${{ env.DOWNSTREAM_MAIN }}"
+        #git fetch "origin/${{ env.DOWNSTREAM_DEVELOP }}"
+        git checkout "origin/${{ env.DOWNSTREAM_MAIN }}"
         #git switch -c ${{ inputs.pr_branch_prefix }}-sync-test-$(date +%Y%m%d) upstream/$UPSTREAM_MAIN
       shell: bash
     
@@ -98,7 +98,7 @@ runs:
 
     - name: Create Pull Request for upstream sync
       run: |
-        gh pr create --title "Automated PR: Upstream Sync into ${{ env.DOWNSTREAM_MAIN }}" --body "This PR was created automatically by the Fork Maintenance System to sync changes from the upstream main into the downstream main." --base ${{ env.DOWNSTREAM_MAIN }} --head upstream/${{ env.UPSTREAM_MAIN }}
+        gh pr create --title "Automated PR: Upstream Sync into ${{ env.DOWNSTREAM_MAIN }}" --body "This PR was created automatically by the Fork Maintenance System to sync changes from the upstream main into the downstream main." --base origin/${{ env.DOWNSTREAM_MAIN }} --head upstream/${{ env.UPSTREAM_MAIN }}
       env:
         GITHUB_TOKEN: ${{ inputs.github_token }}
       shell: bash
