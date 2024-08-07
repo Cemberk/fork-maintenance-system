@@ -48,7 +48,7 @@ runs:
         export DOWNSTREAM_MAIN=$(jq -r '.downstream_main_branch' schedule.json)
         export DOWNSTREAM_DEVELOP=$(jq -r '.downstream_develop_branch' schedule.json)
         export DOWNSTREAM_TESTING=$(jq -r '.downstream_testing_branch' schedule.json)
-        export COMMITS=$(jq -r '.commits[]' schedule.json)
+        export COMMITS=$(jq -r '[.commits[]] | join(",")' schedule.json)
         echo "UPSTREAM_MAIN=$UPSTREAM_MAIN" >> $GITHUB_ENV
         echo "UPSTREAM_RELEASE=$UPSTREAM_RELEASE" >> $GITHUB_ENV
         echo "DOWNSTREAM_TESTING=$DOWNSTREAM_TESTING" >> $GITHUB_ENV
@@ -206,7 +206,8 @@ runs:
 
     - name: Cherry-pick specific commits from develop to release
       run: |
-        for commit in $COMMITS; do
+        IFS=',' read -r -a commit_array <<< "$COMMITS"
+        for commit in "${commit_array[@]}"; do
           git cherry-pick $commit || true
         done
       shell: bash
