@@ -227,6 +227,7 @@ runs:
         else
           echo "No rebase conflicts."
           echo "conflicts=false" >> $GITHUB_ENV
+        fi
       shell: bash
 
     - name: Install Reviewdog
