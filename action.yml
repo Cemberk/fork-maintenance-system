@@ -215,7 +215,7 @@ runs:
 
     - name: Checkout downstream main branch
       run: |
-        git checkout -b tmp-${DOWNSTREAM_DEVELOP}-$(date +%Y%m%d) $DOWNSTREAM_DEVELOP
+        git checkout -b tmp-${DOWNSTREAM_DEVELOP}-$(date +%Y%m%d) origin/$DOWNSTREAM_DEVELOP
         git rebase origin/$DOWNSTREAM_MAIN
       shell: bash
 
