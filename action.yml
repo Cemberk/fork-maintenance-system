@@ -216,7 +216,7 @@ runs:
     - name: Checkout downstream main branch
       run: |
         git checkout -b tmp-${DOWNSTREAM_DEVELOP}-$(date +%Y%m%d) origin/$DOWNSTREAM_MAIN 
-        git rebase origin/$DOWNSTREAM_DEVELOP
+        git rebase origin/$DOWNSTREAM_DEVELOP || true
       shell: bash
 
     #- name: Checkout downstream main branch
@@ -241,6 +241,15 @@ runs:
           echo "conflicts=false" >> $GITHUB_ENV
         fi
       shell: bash
+
+    #push the rebased branch to develop 
+    - name: Push rebased branch
+      run: |
+        #git checkout tmp-${DOWNSTREAM_DEVELOP}-$(date +%Y%m%d)
+        git push origin tmp-${DOWNSTREAM_DEVELOP}-$(date +%Y%m%d) --force
+      shell: bash
+      env:
+        GITHUB_TOKEN: ${{ inputs.github_token }}
 
     - name: Install Reviewdog
       if: env.conflicts == 'true'
@@ -293,14 +302,7 @@ runs:
     #    git commit -m "Mark conflict markers for review"
     #  shell: bash
 
-    #push the rebased branch to develop 
-    - name: Push rebased branch
-      run: |
-        #git checkout tmp-${DOWNSTREAM_DEVELOP}-$(date +%Y%m%d)
-        git push origin tmp-${DOWNSTREAM_DEVELOP}-$(date +%Y%m%d) --force
-      shell: bash
-      env:
-        GITHUB_TOKEN: ${{ inputs.github_token }}
+    
     
     #- name: Run reviewdog to suggest conflict resolutions
     #  if: env.conflicts == 'true'
