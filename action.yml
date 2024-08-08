@@ -279,10 +279,17 @@ runs:
         done
       shell: bash
 
+    - name: Commit conflict markers
+      if: env.conflicts == 'true'
+      run: |
+        git status
+        git add .
+        git commit -m "Mark conflict markers for review"
+
     #push the rebased branch to develop 
     - name: Push rebased branch
       run: |
-        git checkout tmp-${DOWNSTREAM_DEVELOP}-$(date +%Y%m%d)
+        #git checkout tmp-${DOWNSTREAM_DEVELOP}-$(date +%Y%m%d)
         git push origin tmp-${DOWNSTREAM_DEVELOP}-$(date +%Y%m%d) --force
       shell: bash
       env:
