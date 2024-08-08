@@ -197,14 +197,24 @@ runs:
 
 
     #rebase from main to develop 
-    - name: Attempt to rebase downstream main into develop
+    #- name: Attempt to rebase downstream main into develop
+    #  run: |
+    #    git checkout $DOWNSTREAM_DEVELOP
+    #    git pull origin downstream_main
+#git checkout -b tmp-develop-merge
+    #    #git checkout -b tmp-${DOWNSTREAM_DEVELOP}-$(date +%Y%m%d)
+    #    git switch -c tmp-${DOWNSTREAM_DEVELOP}-$(date +%Y%m%d)
+    #    git rebase $DOWNSTREAM_MAIN || true
+    #    #upstream/$UPSTREAM_MAIN
+    #  shell: bash
+
+    - name: Checkout downstream main branch
+      run: git checkout -b tmp-${DOWNSTREAM_DEVELOP}-$(date +%Y%m%d) origin/$DOWNSTREAM_MAIN
+
+    - name: Rebase develop onto tmp-sync-branch
       run: |
         git checkout $DOWNSTREAM_DEVELOP
-        #git checkout -b tmp-${DOWNSTREAM_DEVELOP}-$(date +%Y%m%d)
-        git switch -c tmp-${DOWNSTREAM_DEVELOP}-$(date +%Y%m%d)
-        git rebase $DOWNSTREAM_MAIN || true
-        #upstream/$UPSTREAM_MAIN
-      shell: bash
+        git rebase tmp-${DOWNSTREAM_DEVELOP}-$(date +%Y%m%d)
 
     - name: Check for rebase conflicts
       id: check_conflicts
@@ -220,7 +230,7 @@ runs:
     #push the rebased branch to develop 
     - name: Push rebased branch
       run: |
-        git push origin tmp-${DOWNSTREAM_DEVELOP}-$(date +%Y%m%d)
+        git push origin tmp-${DOWNSTREAM_DEVELOP}-$(date +%Y%m%d) --force
       shell: bash
       env:
         GITHUB_TOKEN: ${{ inputs.github_token }}
@@ -243,10 +253,13 @@ runs:
       with:
         token: ${{ inputs.github_token }}
         base: ${{ inputs.downstream_develop_branch }}
-        head: tmp-${DOWNSTREAM_DEVELOP}-$(date +%Y%m%d)
+        branch: tmp-${DOWNSTREAM_DEVELOP}-$(date +%Y%m%d)
+        #head: tmp-${DOWNSTREAM_DEVELOP}-$(date +%Y%m%d)
         title: "Automated PR: Rebase ${ UPSTREAM_MAIN } into ${ DOWNSTREAM_DEVELOP }"
         body: "This PR was created automatically by the Fork Maintenance System to rebase changes from Downstream main into the develop branch."
         draft: false
+
+      
 
     #develop tests 
     - name: Run unit tests for develop
