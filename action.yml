@@ -316,7 +316,7 @@ runs:
     #    cleanup: 'true'
 
     - name: Create Pull Request for Downstream develop
-      if: env.conflicts == 'false'
+      #if: env.conflicts == 'false'
       uses: peter-evans/create-pull-request@v4
       id: create_pr_develop
       with:
