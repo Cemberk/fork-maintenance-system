@@ -243,13 +243,37 @@ runs:
       shell: bash
 
 
+    #- name: Create suggestions for conflicts
+    #  if: env.conflicts == 'true'
+    #  run: |
+    #    git diff --name-only --diff-filter=U | while read file; do
+    #      git show :1:"$file" > ancestor.txt
+    #      git show :2:"$file" > our-version.txt || echo "" > our-version.txt
+    #      git show :3:"$file" > their-version.txt || echo "" > their-version.txt
+    #      diff3 -m our-version.txt ancestor.txt their-version.txt > conflicts.txt
+    #      reviewdog -f=diff < conflicts.txt || true
+    #    done
+    #  shell: bash
+
     - name: Create suggestions for conflicts
       if: env.conflicts == 'true'
       run: |
         git diff --name-only --diff-filter=U | while read file; do
-          git show :1:"$file" > ancestor.txt
-          git show :2:"$file" > our-version.txt || echo "" > our-version.txt
-          git show :3:"$file" > their-version.txt || echo "" > their-version.txt
+          if git ls-files -u "$file" | grep -q ':1:'; then
+            git show :1:"$file" > ancestor.txt
+          else
+            echo "" > ancestor.txt
+          fi
+          if git ls-files -u "$file" | grep -q ':2:'; then
+            git show :2:"$file" > our-version.txt
+          else
+            echo "" > our-version.txt
+          fi
+          if git ls-files -u "$file" | grep -q ':3:'; then
+            git show :3:"$file" > their-version.txt
+          else
+            echo "" > their-version.txt
+          fi
           diff3 -m our-version.txt ancestor.txt their-version.txt > conflicts.txt
           reviewdog -f=diff < conflicts.txt || true
         done
