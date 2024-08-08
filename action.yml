@@ -200,7 +200,8 @@ runs:
     - name: Attempt to rebase downstream main into develop
       run: |
         git checkout $DOWNSTREAM_DEVELOP
-        git checkout -b tmp-${DOWNSTREAM_DEVELOP}-$(date +%Y%m%d)
+        #git checkout -b tmp-${DOWNSTREAM_DEVELOP}-$(date +%Y%m%d)
+        git switch -c tmp-${DOWNSTREAM_DEVELOP}-$(date +%Y%m%d)
         git rebase $DOWNSTREAM_MAIN || true
         #upstream/$UPSTREAM_MAIN
       shell: bash
