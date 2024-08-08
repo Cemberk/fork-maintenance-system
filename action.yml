@@ -294,6 +294,17 @@ runs:
         done
       shell: bash
 
+    - name: Create Pull Request for upstream sync
+      run: |
+        REPO_OWNER=$(echo $GITHUB_REPOSITORY | cut -d'/' -f1)
+        REPO_NAME=$(echo $GITHUB_REPOSITORY | cut -d'/' -f2)
+        gh pr create --repo "$REPO_OWNER/$REPO_NAME" --title "Automated PR: Downstream develop rebase new changes" --body "This PR was created automatically by the Fork Maintenance System to sync changes from the downstream main into downstream develop." --base origin/${{ inputs.downstream_develop_branch }} --head tmp-${DOWNSTREAM_DEVELOP}-$(date +%Y%m%d)
+        #${{ inputs.pr_branch_prefix }}-sync-test-$(date +%Y%m%d) 
+        #upstream/${{ env.UPSTREAM_MAIN }}
+      env:
+        GITHUB_TOKEN: ${{ inputs.github_token }}
+      shell: bash
+
     #- name: Commit conflict markers
     #  if: env.conflicts == 'true'
     #  run: |
@@ -315,18 +326,18 @@ runs:
     #    fail_on_error: 'false'
     #    cleanup: 'true'
 
-    - name: Create Pull Request for Downstream develop
-      #if: env.conflicts == 'false'
-      uses: peter-evans/create-pull-request@v4
-      id: create_pr_develop
-      with:
-        token: ${{ inputs.github_token }}
-        base: ${{ inputs.downstream_develop_branch }}
-        branch: tmp-${DOWNSTREAM_DEVELOP}-$(date +%Y%m%d)
-        #head: tmp-${DOWNSTREAM_DEVELOP}-$(date +%Y%m%d)
-        title: "Automated PR: Rebase ${ UPSTREAM_MAIN } into ${ DOWNSTREAM_DEVELOP }"
-        body: "This PR was created automatically by the Fork Maintenance System to rebase changes from Downstream main into the develop branch."
-        draft: false
+    #- name: Create Pull Request for Downstream develop
+    #  #if: env.conflicts == 'false'
+    #  uses: peter-evans/create-pull-request@v4
+    #  id: create_pr_develop
+    #  with:
+    #    token: ${{ inputs.github_token }}
+    #    base: ${{ inputs.downstream_develop_branch }}
+    #    branch: tmp-${DOWNSTREAM_DEVELOP}-$(date +%Y%m%d)
+    #    #head: tmp-${DOWNSTREAM_DEVELOP}-$(date +%Y%m%d)
+    #    title: "Automated PR: Rebase ${ UPSTREAM_MAIN } into ${ DOWNSTREAM_DEVELOP }"
+    #    body: "This PR was created automatically by the Fork Maintenance System to rebase changes from Downstream main into the develop branch."
+    #    draft: false
 
       
 
