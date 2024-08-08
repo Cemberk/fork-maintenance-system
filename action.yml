@@ -245,6 +245,7 @@ runs:
     - name: Create suggestions for conflicts
       if: env.conflicts == 'true'
       run: |
+        git diff --name-only --diff-filter=U 
         git diff --name-only --diff-filter=U | while read file; do
           git show :1:"$file" > ancestor.txt
           git show :2:"$file" > our-version.txt
