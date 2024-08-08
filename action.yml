@@ -245,6 +245,7 @@ runs:
     - name: Commit conflict markers
       if: env.conflicts == 'true'
       run: |
+        git rebase --continue || true
         git status
         git add .
         git commit -m "Mark conflict markers for review"
