@@ -192,7 +192,7 @@ runs:
         REPO_NAME=$(echo $GITHUB_REPOSITORY | cut -d'/' -f2)
         echo "repo owner ${REPO_OWNER}"
         echo "repo name ${REPO_NAME}"
-        #gh issue create --repo "$REPO_OWNER/$REPO_NAME" --title "Test Results for sync branch ${{ env.DOWNSTREAM_MAIN }}" --body "$ISSUE_BODY"
+        gh issue create --repo "$REPO_OWNER/$REPO_NAME" --title "Test Results for sync branch ${{ env.DOWNSTREAM_MAIN }}" --body "$ISSUE_BODY"
         #gh issue create --title "Test Results for sync branch ${{ env.DOWNSTREAM_MAIN }}" --body "$ISSUE_BODY"
       shell: bash
       env:
