@@ -285,6 +285,7 @@ runs:
         git status
         git add .
         git commit -m "Mark conflict markers for review"
+      shell: bash
 
     #push the rebased branch to develop 
     - name: Push rebased branch
