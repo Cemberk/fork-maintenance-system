@@ -214,14 +214,20 @@ runs:
     #  shell: bash
 
     - name: Checkout downstream main branch
-      run: git checkout -b tmp-${DOWNSTREAM_DEVELOP}-$(date +%Y%m%d) origin/$DOWNSTREAM_MAIN
+      run: |
+        git checkout -b tmp-${DOWNSTREAM_DEVELOP}-$(date +%Y%m%d) $DOWNSTREAM_DEVELOP
+        git rebase origin/$DOWNSTREAM_MAIN
       shell: bash
 
-    - name: Rebase develop onto tmp-sync-branch
-      run: |
-        git checkout $DOWNSTREAM_DEVELOP
-        git rebase tmp-${DOWNSTREAM_DEVELOP}-$(date +%Y%m%d) || true
-      shell: bash
+    #- name: Checkout downstream main branch
+    #  run: git checkout -b tmp-${DOWNSTREAM_DEVELOP}-$(date +%Y%m%d) origin/$DOWNSTREAM_MAIN
+    #  shell: bash
+
+    #- name: Rebase develop onto tmp-sync-branch
+    #  run: |
+    #    git checkout $DOWNSTREAM_DEVELOP
+    #    git rebase tmp-${DOWNSTREAM_DEVELOP}-$(date +%Y%m%d) || true
+    #  shell: bash
 
     - name: Check for rebase conflicts
       id: check_conflicts
