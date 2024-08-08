@@ -221,6 +221,7 @@ runs:
     - name: Check for rebase conflicts
       id: check_conflicts
       run: |
+        git ls-files -u | grep -q '^';
         if git ls-files -u | grep -q '^'; then
           echo "Rebase conflicts detected."
           echo "conflicts=true" >> $GITHUB_ENV
