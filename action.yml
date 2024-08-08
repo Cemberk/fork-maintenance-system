@@ -188,7 +188,12 @@ runs:
         UNIT_TEST_COMMENT="### Unit Test Results\n\`\`\`\n${UNIT_TEST_RESULTS}\n\`\`\`"
         PERFORMANCE_TEST_COMMENT="### Performance Test Results\n\`\`\`\n${PERFORMANCE_TEST_RESULTS}\n\`\`\`"
         ISSUE_BODY="${UNIT_TEST_COMMENT}\n\n${PERFORMANCE_TEST_COMMENT}"
-        gh issue create --title "Test Results for sync branch ${{ env.DOWNSTREAM_MAIN }}" --body "$ISSUE_BODY"
+        REPO_OWNER=$(echo $GITHUB_REPOSITORY | cut -d'/' -f1)
+        REPO_NAME=$(echo $GITHUB_REPOSITORY | cut -d'/' -f2)
+        echo "repo owner ${REPO_OWNER}"
+        echo "repo name ${REPO_NAME}"
+        #gh issue create --repo "$REPO_OWNER/$REPO_NAME" --title "Test Results for sync branch ${{ env.DOWNSTREAM_MAIN }}" --body "$ISSUE_BODY"
+        #gh issue create --title "Test Results for sync branch ${{ env.DOWNSTREAM_MAIN }}" --body "$ISSUE_BODY"
       shell: bash
       env:
         GITHUB_TOKEN: ${{ inputs.github_token }}
@@ -362,7 +367,8 @@ runs:
         UNIT_TEST_COMMENT="### Unit Test Results\n\`\`\`\n${UNIT_TEST_RESULTS}\n\`\`\`"
         PERFORMANCE_TEST_COMMENT="### Performance Test Results\n\`\`\`\n${PERFORMANCE_TEST_RESULTS}\n\`\`\`"
         ISSUE_BODY="${UNIT_TEST_COMMENT}\n\n${PERFORMANCE_TEST_COMMENT}"
-        gh issue create --title "Test Results for Release branch ${DOWNSTREAM_TESTING}" --body "$ISSUE_BODY"
+        
+        #gh issue create --title "Test Results for Release branch ${DOWNSTREAM_TESTING}" --body "$ISSUE_BODY"
       shell: bash
       env:
         GITHUB_TOKEN: ${{ inputs.github_token }}
