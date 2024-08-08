@@ -215,7 +215,7 @@ runs:
     - name: Rebase develop onto tmp-sync-branch
       run: |
         git checkout $DOWNSTREAM_DEVELOP
-        git rebase tmp-${DOWNSTREAM_DEVELOP}-$(date +%Y%m%d)
+        git rebase tmp-${DOWNSTREAM_DEVELOP}-$(date +%Y%m%d) || true
       shell: bash
 
     - name: Check for rebase conflicts
