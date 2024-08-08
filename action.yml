@@ -229,24 +229,43 @@ runs:
           echo "conflicts=false" >> $GITHUB_ENV
       shell: bash
 
+    - name: Install Reviewdog
+      if: env.conflicts == 'true'
+      run: |
+        curl -sfL https://raw.githubusercontent.com/reviewdog/reviewdog/master/install.sh | sh -s -- -b /usr/local/bin
+      shell: bash
+
+    - name: Create suggestions for conflicts
+      if: env.conflicts == 'true'
+      run: |
+        git diff --name-only --diff-filter=U | while read file; do
+          git show :1:"$file" > ancestor.txt
+          git show :2:"$file" > our-version.txt
+          git show :3:"$file" > their-version.txt
+          diff3 -m our-version.txt ancestor.txt their-version.txt > conflicts.txt
+          reviewdog -f=diff < conflicts.txt
+        done
+      shell: bash
+
     #push the rebased branch to develop 
     - name: Push rebased branch
       run: |
+        git checkout tmp-${DOWNSTREAM_DEVELOP}-$(date +%Y%m%d)
         git push origin tmp-${DOWNSTREAM_DEVELOP}-$(date +%Y%m%d) --force
       shell: bash
       env:
         GITHUB_TOKEN: ${{ inputs.github_token }}
     
-    - name: Run reviewdog to suggest conflict resolutions
-      if: env.conflicts == 'true'
-      uses: reviewdog/action-suggester@v1
-      with:
-        github_token: ${{ inputs.github_token }}
-        tool_name: 'merge-conflict-suggester'
-        level: 'warning'
-        filter_mode: 'diff_context'
-        fail_on_error: 'false'
-        cleanup: 'true'
+    #- name: Run reviewdog to suggest conflict resolutions
+    #  if: env.conflicts == 'true'
+    #  uses: reviewdog/action-suggester@v1
+    #  with:
+    #    github_token: ${{ inputs.github_token }}
+    #    tool_name: 'merge-conflict-suggester'
+    #    level: 'warning'
+    #    filter_mode: 'diff_context'
+    #    fail_on_error: 'false'
+    #    cleanup: 'true'
 
     - name: Create Pull Request for Downstream develop
       if: env.conflicts == 'false'
