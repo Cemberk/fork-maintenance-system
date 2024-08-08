@@ -242,6 +242,14 @@ runs:
         fi
       shell: bash
 
+    - name: Commit conflict markers
+      if: env.conflicts == 'true'
+      run: |
+        git status
+        git add .
+        git commit -m "Mark conflict markers for review"
+      shell: bash
+
     #push the rebased branch to develop 
     - name: Push rebased branch
       run: |
@@ -305,13 +313,7 @@ runs:
         GITHUB_TOKEN: ${{ inputs.github_token }}
       shell: bash
 
-    #- name: Commit conflict markers
-    #  if: env.conflicts == 'true'
-    #  run: |
-    #    git status
-    #    git add .
-    #    git commit -m "Mark conflict markers for review"
-    #  shell: bash
+    
 
     
     
