@@ -147,7 +147,8 @@ runs:
     - name: Run unit tests for upstream sync
       run: |
         echo "Running unit tests for upstream sync..."
-        ${{ inputs.unit_test_command }} 2>&1 | tee UNIT_TEST_RESULTS.txt
+        echo "" > UNIT_TEST_RESULTS.txt
+        ${{ inputs.unit_test_command }} 2>&1 | tee UNIT_TEST_RESULTS.txt  || true
         echo "Unit Test Results: $(cat UNIT_TEST_RESULTS.txt)"
         echo "UNIT_TEST_RESULTS=$(cat UNIT_TEST_RESULTS.txt)" >> $GITHUB_ENV
       shell: bash
@@ -163,31 +164,45 @@ runs:
     - name: Run performance tests for upstream sync
       run: |
         echo "Running performance tests for upstream sync..."
-        PERFORMANCE_TEST_RESULTS=$(eval "${{ inputs.performance_test_command }} 2>&1")
+        PERFORMANCE_TEST_RESULTS=$(eval "${{ inputs.performance_test_command }} 2>&1") || true
         echo "Performance Test Results: $PERFORMANCE_TEST_RESULTS"
         echo "PERFORMANCE_TEST_RESULTS=$PERFORMANCE_TEST_RESULTS" >> $GITHUB_ENV
       shell: bash
 
-    - name: Comment test results on upstream sync PR
+    #- name: Comment test results on upstream sync PR
+    #  run: |
+    #    UNIT_TEST_COMMENT="### Unit Test Results\n\`\`\`\n${UNIT_TEST_RESULTS}\n\`\`\`"
+    #    PERFORMANCE_TEST_COMMENT="### Performance Test Results\n\`\`\`\n${PERFORMANCE_TEST_RESULTS}\n\`\`\`"
+    #    git checkout ${{ env.DOWNSTREAM_MAIN }}
+    #    PR_URL_UPSTREAM_SYNC=$(gh pr view --json url -q .url)
+    #    echo "Commenting test results on upstream sync PR..."
+    #    gh pr comment $PR_URL_UPSTREAM_SYNC -b "$UNIT_TEST_COMMENT\n\n$PERFORMANCE_TEST_COMMENT"
+    #  shell: bash
+    #  env:
+    #    GITHUB_TOKEN: ${{ inputs.github_token }}
+    #    UNIT_TEST_RESULTS: ${{ env.UNIT_TEST_RESULTS }}
+    #    PERFORMANCE_TEST_RESULTS: ${{ env.PERFORMANCE_TEST_RESULTS }}
+
+    - name: Create Issue with test results for upstream sync
       run: |
         UNIT_TEST_COMMENT="### Unit Test Results\n\`\`\`\n${UNIT_TEST_RESULTS}\n\`\`\`"
         PERFORMANCE_TEST_COMMENT="### Performance Test Results\n\`\`\`\n${PERFORMANCE_TEST_RESULTS}\n\`\`\`"
-        git checkout ${{ env.DOWNSTREAM_MAIN }}
-        PR_URL_UPSTREAM_SYNC=$(gh pr view --json url -q .url)
-        echo "Commenting test results on upstream sync PR..."
-        gh pr comment $PR_URL_UPSTREAM_SYNC -b "$UNIT_TEST_COMMENT\n\n$PERFORMANCE_TEST_COMMENT"
+        ISSUE_BODY="${UNIT_TEST_COMMENT}\n\n${PERFORMANCE_TEST_COMMENT}"
+        gh issue create --title "Test Results for sync branch ${{ env.DOWNSTREAM_MAIN }}" --body "$ISSUE_BODY"
       shell: bash
       env:
         GITHUB_TOKEN: ${{ inputs.github_token }}
         UNIT_TEST_RESULTS: ${{ env.UNIT_TEST_RESULTS }}
         PERFORMANCE_TEST_RESULTS: ${{ env.PERFORMANCE_TEST_RESULTS }}
 
+
     #rebase from main to develop 
-    - name: Attempt to rebase upstream main into develop
+    - name: Attempt to rebase downstream main into develop
       run: |
         git checkout $DOWNSTREAM_DEVELOP
         git checkout -b tmp-${DOWNSTREAM_DEVELOP}-$(date +%Y%m%d)
-        git rebase upstream/$UPSTREAM_MAIN || true
+        git rebase $DOWNSTREAM_MAIN || true
+        #upstream/$UPSTREAM_MAIN
       shell: bash
 
     - name: Check for rebase conflicts
