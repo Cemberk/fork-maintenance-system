@@ -226,7 +226,7 @@ runs:
     - name: Check for rebase conflicts
       id: check_conflicts
       run: |
-        git ls-files -u | grep -q '^';
+        git ls-files -u
         if git ls-files -u | grep -q '^'; then
           echo "Rebase conflicts detected."
           echo "conflicts=true" >> $GITHUB_ENV
@@ -242,16 +242,16 @@ runs:
         curl -sfL https://raw.githubusercontent.com/reviewdog/reviewdog/master/install.sh | sh -s -- -b /usr/local/bin
       shell: bash
 
+
     - name: Create suggestions for conflicts
       if: env.conflicts == 'true'
       run: |
-        git diff --name-only --diff-filter=U 
         git diff --name-only --diff-filter=U | while read file; do
           git show :1:"$file" > ancestor.txt
-          git show :2:"$file" > our-version.txt
-          git show :3:"$file" > their-version.txt
+          git show :2:"$file" > our-version.txt || echo "" > our-version.txt
+          git show :3:"$file" > their-version.txt || echo "" > their-version.txt
           diff3 -m our-version.txt ancestor.txt their-version.txt > conflicts.txt
-          reviewdog -f=diff < conflicts.txt
+          reviewdog -f=diff < conflicts.txt || true
         done
       shell: bash
 
