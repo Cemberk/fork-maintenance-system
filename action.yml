@@ -267,7 +267,7 @@ runs:
       run: |
         REPO_OWNER=$(echo $GITHUB_REPOSITORY | cut -d'/' -f1)
         REPO_NAME=$(echo $GITHUB_REPOSITORY | cut -d'/' -f2)
-        PR_URL=$(gh pr create --repo "$REPO_OWNER/$REPO_NAME" --title "Automated PR: Downstream develop rebase new changes" --body "This PR was created automatically by the Fork Maintenance System to sync changes from the downstream main into downstream develop." --base origin/${DOWNSTREAM_DEVELOP} --head tmp-${DOWNSTREAM_DEVELOP}-$(date +%Y%m%d))
+        PR_URL=$(gh pr create --repo "$REPO_OWNER/$REPO_NAME" --title "Automated PR: Downstream develop rebase new changes" --body "This PR was created automatically by the Fork Maintenance System to sync changes from the downstream main into downstream develop." --base origin/${DOWNSTREAM_DEVELOP} --head origin/tmp-${DOWNSTREAM_DEVELOP}-$(date +%Y%m%d))
         PR_NUMBER=$(echo $PR_URL | awk -F '/' '{print $NF}')
         echo "PR_URL=$PR_URL" >> $GITHUB_ENV
         echo "PR_NUMBER=$PR_NUMBER" >> $GITHUB_ENV
