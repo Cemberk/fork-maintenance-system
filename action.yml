@@ -247,9 +247,9 @@ runs:
       if: env.conflicts == 'true'
       run: |
         git status
-        git add -u 
-        #.
-        GIT_SEQUENCE_EDITOR=: git rebase --continue || true
+        git add . 
+        #-u
+        GIT_EDITOR=true git rebase --continue || true
         #git commit -m "Mark conflict markers for review"
       shell: bash
 
