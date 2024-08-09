@@ -249,7 +249,7 @@ runs:
         git status
         git add -u 
         #.
-        git rebase --continue || true
+        GIT_SEQUENCE_EDITOR=: git rebase --continue || true
         #git commit -m "Mark conflict markers for review"
       shell: bash
 
