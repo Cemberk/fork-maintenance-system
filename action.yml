@@ -248,7 +248,7 @@ runs:
       run: |
         git status
         git add .
-        git rebase --continue || true
+        git rebase --continue -m "rebase commits"|| true
         #git commit -m "Mark conflict markers for review"
       shell: bash
 
