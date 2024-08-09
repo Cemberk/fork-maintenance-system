@@ -193,7 +193,6 @@ runs:
         echo "repo owner ${REPO_OWNER}"
         echo "repo name ${REPO_NAME}"
         gh issue create --repo "$REPO_OWNER/$REPO_NAME" --title "Test Results for sync branch ${{ env.DOWNSTREAM_MAIN }}" --body "$ISSUE_BODY"
-        #gh issue create --title "Test Results for sync branch ${{ env.DOWNSTREAM_MAIN }}" --body "$ISSUE_BODY"
       shell: bash
       env:
         GITHUB_TOKEN: ${{ inputs.github_token }}
@@ -279,36 +278,28 @@ runs:
       if: env.conflicts == 'true'
       run: |
         git diff --name-only --diff-filter=U | while read file; do
-          if git ls-files -u "$file" | grep -q ':1:'; then
-            git show :1:"$file" > ancestor.txt
-          else
-            echo "" > ancestor.txt
-          fi
-          if git ls-files -u "$file" | grep -q ':2:'; then
-            git show :2:"$file" > our-version.txt
-          else
-            echo "" > our-version.txt
-          fi
-          if git ls-files -u "$file" | grep -q ':3:'; then
-            git show :3:"$file" > their-version.txt
-          else
-            echo "" > their-version.txt
-          fi
-
-          # Create a suggestion diff using diff3
-          diff3 -m our-version.txt ancestor.txt their-version.txt > conflicts.txt
-
-          # Post suggestions to GitHub
-          LINE_NUMBER=$(grep -n '<<<<<<<' conflicts.txt | cut -d: -f1 | head -n 1)
-          COMMENT_BODY="### Conflict detected in \`$file\`\n\`\`\`diff\n$(cat conflicts.txt)\n\`\`\`\nPlease resolve the conflict by keeping the necessary changes."
-
-          curl -L \
-            -X POST \
-            -H "Accept: application/vnd.github+json" \
-            -H "Authorization: Bearer ${{ inputs.github_token }}" \
-            -H "X-GitHub-Api-Version: 2022-11-28" \
-            https://api.github.com/repos/${{ github.repository_owner }}/$(basename ${{ github.repository }})/pulls/${{ env.PR_NUMBER }}/comments \
-            -d "{\"body\":\"${COMMENT_BODY}\",\"commit_id\":\"${{ github.event.pull_request.head.sha }}\",\"path\":\"$file\",\"line\":$LINE_NUMBER,\"side\":\"RIGHT\"}"
+          # Split the file into ancestor, our-version, and their-version
+          git show :1:"$file" > ancestor.txt || echo "" > ancestor.txt
+          git show :2:"$file" > our-version.txt || echo "" > our-version.txt
+          git show :3:"$file" > their-version.txt || echo "" > their-version.txt
+          
+          # Create conflict suggestions for each conflict in the file
+          conflict_markers=$(grep -n '<<<<<<<' $file | cut -d: -f1)
+          for marker in $conflict_markers; do
+            LINE_NUMBER=$((marker+1))
+            diff3 -m our-version.txt ancestor.txt their-version.txt > conflict_$LINE_NUMBER.txt
+            
+            # Post suggestion for this conflict
+            COMMENT_BODY="### Conflict detected in \`$file\` at line $LINE_NUMBER\n\`\`\`diff\n$(cat conflict_$LINE_NUMBER.txt)\n\`\`\`\nPlease resolve the conflict by keeping the necessary changes."
+            
+            curl -L \
+              -X POST \
+              -H "Accept: application/vnd.github+json" \
+              -H "Authorization: Bearer ${{ inputs.github_token }}" \
+              -H "X-GitHub-Api-Version: 2022-11-28" \
+              https://api.github.com/repos/${{ github.repository_owner }}/$(basename ${{ github.repository }})/pulls/${{ env.PR_NUMBER }}/comments \
+              -d "{\"body\":\"${COMMENT_BODY}\",\"commit_id\":\"${{ github.event.pull_request.head.sha }}\",\"path\":\"$file\",\"line\":$LINE_NUMBER,\"side\":\"RIGHT\"}"
+          done
         done
       shell: bash
 
@@ -417,9 +408,9 @@ runs:
       run: |
         UNIT_TEST_COMMENT="### Unit Test Results\n\`\`\`\n${UNIT_TEST_RESULTS}\n\`\`\`"
         PERFORMANCE_TEST_COMMENT="### Performance Test Results\n\`\`\`\n${PERFORMANCE_TEST_RESULTS}\n\`\`\`"
-        PR_URL_DEVELOP=$(jq -r '.html_url' ${{ steps.create_pr_develop.outputs.pull_request }})
+        #PR_URL_DEVELOP=$PR_URL    #(jq -r '.html_url' ${{ steps.create_pr_develop.outputs.pull_request }})
         echo "Commenting test results on develop PR..."
-        gh pr comment $PR_URL_DEVELOP -b "$UNIT_TEST_COMMENT\n\n$PERFORMANCE_TEST_COMMENT"
+        gh pr comment $PR_URL -b "$UNIT_TEST_COMMENT\n\n$PERFORMANCE_TEST_COMMENT"
       shell: bash
       env:
         GITHUB_TOKEN: ${{ inputs.github_token }}
