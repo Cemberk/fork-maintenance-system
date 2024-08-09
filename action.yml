@@ -287,6 +287,7 @@ runs:
           conflict_markers=$(grep -n '<<<<<<<' $file | cut -d: -f1)
           for marker in $conflict_markers; do
             LINE_NUMBER=$((marker+1))
+            echo $marker
             diff3 -m our-version.txt ancestor.txt their-version.txt > conflict_$LINE_NUMBER.txt
             
             # Post suggestion for this conflict
@@ -465,7 +466,9 @@ runs:
         UNIT_TEST_COMMENT="### Unit Test Results\n\`\`\`\n${UNIT_TEST_RESULTS}\n\`\`\`"
         PERFORMANCE_TEST_COMMENT="### Performance Test Results\n\`\`\`\n${PERFORMANCE_TEST_RESULTS}\n\`\`\`"
         ISSUE_BODY="${UNIT_TEST_COMMENT}\n\n${PERFORMANCE_TEST_COMMENT}"
-        
+        REPO_OWNER=$(echo $GITHUB_REPOSITORY | cut -d'/' -f1)
+        REPO_NAME=$(echo $GITHUB_REPOSITORY | cut -d'/' -f2)
+        gh issue create --repo "$REPO_OWNER/$REPO_NAME" --title "Test Results for release branch ${{ env.DOWNSTREAM_TESTING }}" --body "$ISSUE_BODY"
         #gh issue create --title "Test Results for Release branch ${DOWNSTREAM_TESTING}" --body "$ISSUE_BODY"
       shell: bash
       env:
