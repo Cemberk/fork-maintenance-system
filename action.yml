@@ -215,8 +215,8 @@ runs:
 
     - name: Checkout downstream main branch
       run: |
-        git checkout -b tmp-${DOWNSTREAM_DEVELOP}-$(date +%Y%m%d) origin/$DOWNSTREAM_MAIN 
-        git rebase origin/$DOWNSTREAM_DEVELOP || true
+        git checkout -b tmp-${DOWNSTREAM_DEVELOP}-$(date +%Y%m%d) origin/$DOWNSTREAM_DEVELOP
+        git rebase origin/$DOWNSTREAM_MAIN  || true
       shell: bash
 
     #- name: Checkout downstream main branch
@@ -245,10 +245,10 @@ runs:
     - name: Commit conflict markers
       if: env.conflicts == 'true'
       run: |
-        git rebase --continue || true
         git status
         git add .
-        git commit -m "Mark conflict markers for review"
+        git rebase --continue || true
+        #git commit -m "Mark conflict markers for review"
       shell: bash
 
     #push the rebased branch to develop 
