@@ -439,7 +439,7 @@ runs:
     #push new branch 
     - name: Push new testing branch
       run: |
-        git push origin ${DOWNSTREAM_TESTING}
+        git push origin ${DOWNSTREAM_TESTING} --force
       shell: bash
       env:
         GITHUB_TOKEN: ${{ inputs.github_token }}
