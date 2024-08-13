@@ -76,7 +76,7 @@ runs:
 
     - name: Checkout and update downstream main
       run: |
-        git checkout ${{ env.DOWNSTREAM_MAIN }} || git checkout -b ${{ env.DOWNSTREAM_MAIN }} upstream/${{ env.UPSTREAM_MAIN }}
+        git checkout ${{ env.DOWNSTREAM_MAIN }} # || git checkout -b ${{ env.DOWNSTREAM_MAIN }} upstream/${{ env.UPSTREAM_MAIN }}
         git pull origin ${{ env.DOWNSTREAM_MAIN }}
       shell: bash
 
@@ -87,7 +87,8 @@ runs:
         #git push origin ${{ inputs.pr_branch_prefix }}-sync-test-$(date +%Y%m%d)
       shell: bash
 
-    - name: Push rebased downstream main
+    - name: Push rebased downstream main #TODO push if comment pass 
+      #if: env.merge_approved == 'true' #approval is for all 3 steps so results on same issue  
       run: |
         git push origin ${{ env.DOWNSTREAM_MAIN }} --force
       shell: bash
