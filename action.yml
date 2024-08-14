@@ -82,9 +82,10 @@ runs:
         REPO_NAME=$(echo $GITHUB_REPOSITORY | cut -d'/' -f2)
         existing_issue=$(gh issue list --repo "$REPO_OWNER/$REPO_NAME" --search "$ISSUE_TITLE" --json number --jq '.[0].number')
         if [ -z "$existing_issue" ]; then
-          ISSUE_BODY="This issue contains the test results for the upstream sync, develop PR, and release testing branches. Comment 'proceed with rebase' to approve. Close when maintenance is complete or there will be problem on next run"
-          created_issue=$(gh issue create --title "$ISSUE_TITLE" --body "$ISSUE_BODY" --repo "$REPO_OWNER/$REPO_NAME" --json number --jq '.number')
-          echo "issue_number=$created_issue" >> $GITHUB_ENV
+          ISSUE_BODY="This issue contains the test results for the upstream sync, develop PR, and release testing branches. Comment 'proceed with rebase' to approve. Close when maintenance is complete or there will be problems on the next run."
+          created_issue=$(gh issue create --title "$ISSUE_TITLE" --body "$ISSUE_BODY" --repo "$REPO_OWNER/$REPO_NAME")
+          issue_number=$(echo "$created_issue" | grep -oP 'https://github\.com/.+?/issues/\K[0-9]+')
+          echo "issue_number=$issue_number" >> $GITHUB_ENV
         else
           echo "issue_number=$existing_issue" >> $GITHUB_ENV
         fi
