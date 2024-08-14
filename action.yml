@@ -89,6 +89,8 @@ runs:
           echo "issue_number=$existing_issue" >> $GITHUB_ENV
         fi
       shell: bash
+      env:
+        GITHUB_TOKEN: ${{ inputs.github_token }}
 
     - name: Check for Comment Approval
       id: check_comment
@@ -102,6 +104,8 @@ runs:
           echo "rebase_approved=false" >> $GITHUB_ENV
         fi
       shell: bash
+      env:
+        GITHUB_TOKEN: ${{ inputs.github_token }}
 
     - name: Checkout and update downstream main
       run: |
