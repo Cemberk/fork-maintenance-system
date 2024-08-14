@@ -414,7 +414,10 @@ runs:
     #    body: "This PR was created automatically by the Fork Maintenance System to rebase changes from Downstream main into the develop branch."
     #    draft: false
 
-      
+    - name: Install 
+      run: |
+        pip install -e .
+      shell: bash
 
     #develop tests 
     - name: Run unit tests for develop
@@ -488,6 +491,10 @@ runs:
       env:
         GITHUB_TOKEN: ${{ inputs.github_token }}
 
+    - name: Install 
+      run: |
+        pip install -e .
+      shell: bash
 
     - name: Run unit tests for release
       if: env.rebase_approved == 'false'
