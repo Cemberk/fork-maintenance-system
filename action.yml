@@ -88,6 +88,7 @@ runs:
         else
           echo "issue_number=$existing_issue" >> $GITHUB_ENV
         fi
+      shell: bash
 
     - name: Check for Comment Approval
       id: check_comment
@@ -100,7 +101,7 @@ runs:
         else
           echo "rebase_approved=false" >> $GITHUB_ENV
         fi
-
+      shell: bash
 
     - name: Checkout and update downstream main
       run: |
