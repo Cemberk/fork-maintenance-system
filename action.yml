@@ -74,6 +74,34 @@ runs:
         #git switch -c ${{ inputs.pr_branch_prefix }}-sync-test-$(date +%Y%m%d) upstream/$UPSTREAM_MAIN
       shell: bash
 
+    - name: Find or Create Approval Issue
+      id: find_or_create_issue
+      run: |
+        ISSUE_TITLE="Rebase Approval for Branches"
+        REPO_OWNER=$(echo $GITHUB_REPOSITORY | cut -d'/' -f1)
+        REPO_NAME=$(echo $GITHUB_REPOSITORY | cut -d'/' -f2)
+        existing_issue=$(gh issue list --repo "$REPO_OWNER/$REPO_NAME" --search "$ISSUE_TITLE" --json number --jq '.[0].number')
+        if [ -z "$existing_issue" ]; then
+          ISSUE_BODY="This issue contains the test results for the upstream sync, develop PR, and release testing branches. Comment 'proceed with rebase' to approve. Close when maintenance is complete or there will be problem on next run"
+          created_issue=$(gh issue create --title "$ISSUE_TITLE" --body "$ISSUE_BODY" --repo "$REPO_OWNER/$REPO_NAME" --json number --jq '.number')
+          echo "issue_number=$created_issue" >> $GITHUB_ENV
+        else
+          echo "issue_number=$existing_issue" >> $GITHUB_ENV
+        fi
+
+    - name: Check for Comment Approval
+      id: check_comment
+      run: |
+        REPO_OWNER=$(echo $GITHUB_REPOSITORY | cut -d'/' -f1)
+        REPO_NAME=$(echo $GITHUB_REPOSITORY | cut -d'/' -f2)
+        comments=$(gh issue view ${{ env.issue_number }} --repo "$REPO_OWNER/$REPO_NAME" --json comments --jq '.comments[].body')
+        if echo "$comments" | grep -q 'proceed with rebase'; then
+          echo "rebase_approved=true" >> $GITHUB_ENV
+        else
+          echo "rebase_approved=false" >> $GITHUB_ENV
+        fi
+
+
     - name: Checkout and update downstream main
       run: |
         git checkout ${{ env.DOWNSTREAM_MAIN }} # || git checkout -b ${{ env.DOWNSTREAM_MAIN }} upstream/${{ env.UPSTREAM_MAIN }}
@@ -89,35 +117,12 @@ runs:
 
     - name: Push rebased downstream main #TODO push if comment pass 
       #if: env.merge_approved == 'true' #approval is for all 3 steps so results on same issue  
+      if: env.rebase_approved == 'true'
       run: |
         git push origin ${{ env.DOWNSTREAM_MAIN }} --force
       shell: bash
       env:
         GITHUB_TOKEN: ${{ inputs.github_token }}
-
-    
-    #- name: Create new branch
-    #  run: |
-    #    git checkout -b ${{ inputs.pr_branch_prefix }}-$(date +%Y%m%d)
-    #  shell: bash
-
-    #Upstream sync pr 
-    #- name: Create Pull Request for upstream sync
-    #  uses: peter-evans/create-pull-request@v4
-    #  id: create_pr_upstream_sync
-    #  with:
-    #    token: ${{ inputs.github_token }}
-    #    base: origin/${{ inputs.downstream_main_branch }}
-    #    head: ${{ inputs.pr_branch_prefix }}-$(date +%Y%m%d)
-    #    title: "Automated PR: Upstream Sync into ${ DOWNSTREAM_MAIN }"
-    #    body: "This PR was created automatically by the Fork Maintenance System to sync changes from the upstream main into the downstream main."
-    #    draft: false
-
-    #- name: Push branch and create PR for upstream sync
-    #    run: gh pr create --title "Automated PR: Upstream Sync into ${{ env.DOWNSTREAM_MAIN }}" --body "This PR was created automatically by the Fork Maintenance System to sync changes from the upstream main into the downstream main." --base ${{ env.DOWNSTREAM_MAIN }} --head upstream/${{ inputs.upstream_main_branch }}
-    #    env:
-    #      GITHUB_TOKEN: ${{ inputs.github_token }}
-    #    shell: bash
 
     #- name: Create Pull Request for upstream sync
     #  run: |
@@ -146,6 +151,7 @@ runs:
       shell: bash
 
     - name: Run unit tests for upstream sync
+      if: env.rebase_approved == 'false'
       run: |
         echo "Running unit tests for upstream sync..."
         echo "" > UNIT_TEST_RESULTS.txt
@@ -163,6 +169,7 @@ runs:
     #  shell: bash
 
     - name: Run performance tests for upstream sync
+      if: env.rebase_approved == 'false'
       run: |
         echo "Running performance tests for upstream sync..."
         PERFORMANCE_TEST_RESULTS=$(eval "${{ inputs.performance_test_command }} 2>&1") || true
@@ -184,21 +191,35 @@ runs:
     #    UNIT_TEST_RESULTS: ${{ env.UNIT_TEST_RESULTS }}
     #    PERFORMANCE_TEST_RESULTS: ${{ env.PERFORMANCE_TEST_RESULTS }}
 
-    - name: Create Issue with test results for upstream sync
+    ##- name: Create Issue with test results for upstream sync
+    ##  run: |
+    ##    UNIT_TEST_COMMENT="### Unit Test Results\n\`\`\`\n${UNIT_TEST_RESULTS}\n\`\`\`"
+    ##    PERFORMANCE_TEST_COMMENT="### Performance Test Results\n\`\`\`\n${PERFORMANCE_TEST_RESULTS}\n\`\`\`"
+    ##    ISSUE_BODY="${UNIT_TEST_COMMENT}\n\n${PERFORMANCE_TEST_COMMENT}"
+    ##    REPO_OWNER=$(echo $GITHUB_REPOSITORY | cut -d'/' -f1)
+    ##    REPO_NAME=$(echo $GITHUB_REPOSITORY | cut -d'/' -f2)
+    ##    echo "repo owner ${REPO_OWNER}"
+    ##    echo "repo name ${REPO_NAME}"
+    ##    gh issue create --repo "$REPO_OWNER/$REPO_NAME" --title "Test Results for sync branch ${{ env.DOWNSTREAM_MAIN }}" --body "$ISSUE_BODY"
+    ##  shell: bash
+    ##  env:
+    ##    GITHUB_TOKEN: ${{ inputs.github_token }}
+    ##    UNIT_TEST_RESULTS: ${{ env.UNIT_TEST_RESULTS }}
+    ##    PERFORMANCE_TEST_RESULTS: ${{ env.PERFORMANCE_TEST_RESULTS }}
+
+    - name: Append Test Results to Issue
+      if: env.rebase_approved == 'false'
       run: |
-        UNIT_TEST_COMMENT="### Unit Test Results\n\`\`\`\n${UNIT_TEST_RESULTS}\n\`\`\`"
-        PERFORMANCE_TEST_COMMENT="### Performance Test Results\n\`\`\`\n${PERFORMANCE_TEST_RESULTS}\n\`\`\`"
-        ISSUE_BODY="${UNIT_TEST_COMMENT}\n\n${PERFORMANCE_TEST_COMMENT}"
         REPO_OWNER=$(echo $GITHUB_REPOSITORY | cut -d'/' -f1)
         REPO_NAME=$(echo $GITHUB_REPOSITORY | cut -d'/' -f2)
-        echo "repo owner ${REPO_OWNER}"
-        echo "repo name ${REPO_NAME}"
-        gh issue create --repo "$REPO_OWNER/$REPO_NAME" --title "Test Results for sync branch ${{ env.DOWNSTREAM_MAIN }}" --body "$ISSUE_BODY"
+        UNIT_TEST_COMMENT="### Unit Test Results for ${{ env.BRANCH_NAME }}\n\`\`\`\n${UNIT_TEST_RESULTS}\n\`\`\`"
+        PERFORMANCE_TEST_COMMENT="### Performance Test Results for ${{ env.BRANCH_NAME }}\n\`\`\`\n${PERFORMANCE_TEST_RESULTS}\n\`\`\`"
+        gh issue comment ${{ env.issue_number }} --body "$UNIT_TEST_COMMENT\n\n$PERFORMANCE_TEST_COMMENT" --repo "$REPO_OWNER/$REPO_NAME"
       shell: bash
       env:
         GITHUB_TOKEN: ${{ inputs.github_token }}
         UNIT_TEST_RESULTS: ${{ env.UNIT_TEST_RESULTS }}
-        PERFORMANCE_TEST_RESULTS: ${{ env.PERFORMANCE_TEST_RESULTS }}
+        PERFORMANCE_TEST_RESULTS: ${{ env.PERFORMANCE_TEST_RESULTS }}  
 
 
     #rebase from main to develop 
@@ -391,6 +412,7 @@ runs:
 
     #develop tests 
     - name: Run unit tests for develop
+      if: env.rebase_approved == 'false'
       run: |
         echo "Running unit tests for develop..."
         UNIT_TEST_RESULTS=$(eval "${{ inputs.unit_test_command }} 2>&1")
@@ -399,6 +421,7 @@ runs:
       shell: bash
 
     - name: Run performance tests for develop
+      if: env.rebase_approved == 'false'
       run: |
         echo "Running performance tests for develop..."
         PERFORMANCE_TEST_RESULTS=$(eval "${{ inputs.performance_test_command }} 2>&1")
@@ -406,19 +429,32 @@ runs:
         echo "PERFORMANCE_TEST_RESULTS=$PERFORMANCE_TEST_RESULTS" >> $GITHUB_ENV
       shell: bash
 
-    - name: Comment test results on develop PR
+    ##- name: Comment test results on develop PR
+    ##  run: |
+    ##    UNIT_TEST_COMMENT="### Unit Test Results\n\`\`\`\n${UNIT_TEST_RESULTS}\n\`\`\`"
+    ##    PERFORMANCE_TEST_COMMENT="### Performance Test Results\n\`\`\`\n${PERFORMANCE_TEST_RESULTS}\n\`\`\`"
+    ##    #PR_URL_DEVELOP=$PR_URL    #(jq -r '.html_url' ${{ steps.create_pr_develop.outputs.pull_request }})
+    ##    echo "Commenting test results on develop PR..."
+    ##    gh pr comment $PR_URL -b "$UNIT_TEST_COMMENT\n\n$PERFORMANCE_TEST_COMMENT"
+    ##  shell: bash
+    ##  env:
+    ##    GITHUB_TOKEN: ${{ inputs.github_token }}
+    ##    UNIT_TEST_RESULTS: ${{ env.UNIT_TEST_RESULTS }}
+    ##    PERFORMANCE_TEST_RESULTS: ${{ env.PERFORMANCE_TEST_RESULTS }}
+
+    - name: Append Test Results to Issue
+      if: env.rebase_approved == 'false'
       run: |
-        UNIT_TEST_COMMENT="### Unit Test Results\n\`\`\`\n${UNIT_TEST_RESULTS}\n\`\`\`"
-        PERFORMANCE_TEST_COMMENT="### Performance Test Results\n\`\`\`\n${PERFORMANCE_TEST_RESULTS}\n\`\`\`"
-        #PR_URL_DEVELOP=$PR_URL    #(jq -r '.html_url' ${{ steps.create_pr_develop.outputs.pull_request }})
-        echo "Commenting test results on develop PR..."
-        gh pr comment $PR_URL -b "$UNIT_TEST_COMMENT\n\n$PERFORMANCE_TEST_COMMENT"
+        REPO_OWNER=$(echo $GITHUB_REPOSITORY | cut -d'/' -f1)
+        REPO_NAME=$(echo $GITHUB_REPOSITORY | cut -d'/' -f2)
+        UNIT_TEST_COMMENT="### Unit Test Results for ${{ env.BRANCH_NAME }}\n\`\`\`\n${UNIT_TEST_RESULTS}\n\`\`\`"
+        PERFORMANCE_TEST_COMMENT="### Performance Test Results for ${{ env.BRANCH_NAME }}\n\`\`\`\n${PERFORMANCE_TEST_RESULTS}\n\`\`\`"
+        gh issue comment ${{ env.issue_number }} --body "$UNIT_TEST_COMMENT\n\n$PERFORMANCE_TEST_COMMENT" --repo "$REPO_OWNER/$REPO_NAME"
       shell: bash
       env:
         GITHUB_TOKEN: ${{ inputs.github_token }}
         UNIT_TEST_RESULTS: ${{ env.UNIT_TEST_RESULTS }}
         PERFORMANCE_TEST_RESULTS: ${{ env.PERFORMANCE_TEST_RESULTS }}
-
 
 
     #cherry pick from develop to new branch release
@@ -439,6 +475,7 @@ runs:
 
     #push new branch 
     - name: Push new testing branch
+      if: env.rebase_approved == 'true'
       run: |
         git push origin ${DOWNSTREAM_TESTING} --force
       shell: bash
@@ -447,6 +484,7 @@ runs:
 
 
     - name: Run unit tests for release
+      if: env.rebase_approved == 'false'
       run: |
         echo "Running unit tests for release..."
         UNIT_TEST_RESULTS=$(eval "${{ inputs.unit_test_command }} 2>&1")
@@ -455,6 +493,7 @@ runs:
       shell: bash
 
     - name: Run performance tests for release
+      if: env.rebase_approved == 'false'
       run: |
         echo "Running performance tests for release..."
         PERFORMANCE_TEST_RESULTS=$(eval "${{ inputs.performance_test_command }} 2>&1")
@@ -462,21 +501,33 @@ runs:
         echo "PERFORMANCE_TEST_RESULTS=$PERFORMANCE_TEST_RESULTS" >> $GITHUB_ENV
       shell: bash
 
-    - name: Create Issue with test results for release
+    ##- name: Create Issue with test results for release
+    ##  run: |
+    ##    UNIT_TEST_COMMENT="### Unit Test Results\n\`\`\`\n${UNIT_TEST_RESULTS}\n\`\`\`"
+    ##    PERFORMANCE_TEST_COMMENT="### Performance Test Results\n\`\`\`\n${PERFORMANCE_TEST_RESULTS}\n\`\`\`"
+    ##    ISSUE_BODY="${UNIT_TEST_COMMENT}\n\n${PERFORMANCE_TEST_COMMENT}"
+    ##    REPO_OWNER=$(echo $GITHUB_REPOSITORY | cut -d'/' -f1)
+    ##    REPO_NAME=$(echo $GITHUB_REPOSITORY | cut -d'/' -f2)
+    ##    gh issue create --repo "$REPO_OWNER/$REPO_NAME" --title "Test Results for release branch ${{ env.DOWNSTREAM_TESTING }}" --body "$ISSUE_BODY"
+    ##  shell: bash
+    ##  env:
+    ##    GITHUB_TOKEN: ${{ inputs.github_token }}
+    ##    UNIT_TEST_RESULTS: ${{ env.UNIT_TEST_RESULTS }}
+    ##    PERFORMANCE_TEST_RESULTS: ${{ env.PERFORMANCE_TEST_RESULTS }}
+
+    - name: Append Test Results to Issue
+      if: env.rebase_approved == 'false'
       run: |
-        UNIT_TEST_COMMENT="### Unit Test Results\n\`\`\`\n${UNIT_TEST_RESULTS}\n\`\`\`"
-        PERFORMANCE_TEST_COMMENT="### Performance Test Results\n\`\`\`\n${PERFORMANCE_TEST_RESULTS}\n\`\`\`"
-        ISSUE_BODY="${UNIT_TEST_COMMENT}\n\n${PERFORMANCE_TEST_COMMENT}"
         REPO_OWNER=$(echo $GITHUB_REPOSITORY | cut -d'/' -f1)
         REPO_NAME=$(echo $GITHUB_REPOSITORY | cut -d'/' -f2)
-        gh issue create --repo "$REPO_OWNER/$REPO_NAME" --title "Test Results for release branch ${{ env.DOWNSTREAM_TESTING }}" --body "$ISSUE_BODY"
+        UNIT_TEST_COMMENT="### Unit Test Results for ${{ env.BRANCH_NAME }}\n\`\`\`\n${UNIT_TEST_RESULTS}\n\`\`\`"
+        PERFORMANCE_TEST_COMMENT="### Performance Test Results for ${{ env.BRANCH_NAME }}\n\`\`\`\n${PERFORMANCE_TEST_RESULTS}\n\`\`\`"
+        gh issue comment ${{ env.issue_number }} --body "$UNIT_TEST_COMMENT\n\n$PERFORMANCE_TEST_COMMENT" --repo "$REPO_OWNER/$REPO_NAME"
       shell: bash
       env:
         GITHUB_TOKEN: ${{ inputs.github_token }}
         UNIT_TEST_RESULTS: ${{ env.UNIT_TEST_RESULTS }}
         PERFORMANCE_TEST_RESULTS: ${{ env.PERFORMANCE_TEST_RESULTS }}
-
-
 
 
 
