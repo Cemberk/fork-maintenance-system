@@ -29,11 +29,7 @@ runs:
   steps:
     - name: Check out code
       uses: actions/checkout@v4
-      with:
-        token: $GITHUB_TOKEN
-      env:
-        GITHUB_TOKEN: ${{ inputs.github_token }}
-
+      
     - name: Set up Git
       run: |
         git config --global user.name 'github-actions[bot]'
