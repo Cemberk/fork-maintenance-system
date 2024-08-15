@@ -103,7 +103,6 @@ runs:
         comments=$(gh issue view ${{ env.issue_number }} --repo "$REPO_OWNER/$REPO_NAME" --json comments --jq '.comments[].body')
         if echo "$comments" | grep -q 'proceed with rebase'; then
           echo "rebase_approved=true" >> $GITHUB_ENV
-          gh auth login 
         else
           echo "rebase_approved=false" >> $GITHUB_ENV
         fi
