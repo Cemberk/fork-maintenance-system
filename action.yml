@@ -29,6 +29,8 @@ runs:
   steps:
     - name: Check out code
       uses: actions/checkout@v4
+      env:
+        GITHUB_TOKEN: ${{ inputs.github_token }}
 
     - name: Set up Git
       run: |
