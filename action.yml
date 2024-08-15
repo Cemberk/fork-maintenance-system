@@ -135,20 +135,6 @@ runs:
       env:
         GITHUB_TOKEN: ${{ inputs.github_token }}
 
-    #- name: Create Pull Request for upstream sync
-    #  run: |
-    #    gh pr create --title "Automated PR: Upstream Sync into ${{ env.DOWNSTREAM_MAIN }}" --body "This PR was created automatically by the Fork Maintenance System to sync changes from the upstream main into the downstream main." --base origin/${{ env.DOWNSTREAM_MAIN }} --head upstream/${{ env.UPSTREAM_MAIN }}
-    #    #${{ inputs.pr_branch_prefix }}-sync-test-$(date +%Y%m%d) 
-    #    #upstream/${{ env.UPSTREAM_MAIN }}
-    #  env:
-    #    GITHUB_TOKEN: ${{ inputs.github_token }}
-    #  shell: bash
-
-    #- name: upstream changes
-    #  run: |
-    #    git switch -c ${{ inputs.pr_branch_prefix }}-sync-test-$(date +%Y%m%d) upstream/$UPSTREAM_MAIN
-    #  shell: bash
-
     - name: Set up Python
       uses: actions/setup-python@v2
       with:
@@ -171,14 +157,6 @@ runs:
         echo "UNIT_TEST_RESULTS=$(cat UNIT_TEST_RESULTS.txt)" >> $GITHUB_ENV
       shell: bash
 
-    #- name: Run unit tests for upstream sync
-    #  run: |
-    #    echo "Running unit tests for upstream sync..."
-    #    UNIT_TEST_RESULTS=$(eval "${{ inputs.unit_test_command }} 2>&1")
-    #    echo "Unit Test Results: $UNIT_TEST_RESULTS"
-    #    echo "UNIT_TEST_RESULTS=$UNIT_TEST_RESULTS" >> $GITHUB_ENV
-    #  shell: bash
-
     - name: Run performance tests for upstream sync
       if: env.rebase_approved == 'false'
       run: |
@@ -187,36 +165,6 @@ runs:
         echo "Performance Test Results: $PERFORMANCE_TEST_RESULTS"
         echo "PERFORMANCE_TEST_RESULTS=$PERFORMANCE_TEST_RESULTS" >> $GITHUB_ENV
       shell: bash
-
-    #- name: Comment test results on upstream sync PR
-    #  run: |
-    #    UNIT_TEST_COMMENT="### Unit Test Results\n\`\`\`\n${UNIT_TEST_RESULTS}\n\`\`\`"
-    #    PERFORMANCE_TEST_COMMENT="### Performance Test Results\n\`\`\`\n${PERFORMANCE_TEST_RESULTS}\n\`\`\`"
-    #    git checkout ${{ env.DOWNSTREAM_MAIN }}
-    #    PR_URL_UPSTREAM_SYNC=$(gh pr view --json url -q .url)
-    #    echo "Commenting test results on upstream sync PR..."
-    #    gh pr comment $PR_URL_UPSTREAM_SYNC -b "$UNIT_TEST_COMMENT\n\n$PERFORMANCE_TEST_COMMENT"
-    #  shell: bash
-    #  env:
-    #    GITHUB_TOKEN: ${{ inputs.github_token }}
-    #    UNIT_TEST_RESULTS: ${{ env.UNIT_TEST_RESULTS }}
-    #    PERFORMANCE_TEST_RESULTS: ${{ env.PERFORMANCE_TEST_RESULTS }}
-
-    ##- name: Create Issue with test results for upstream sync
-    ##  run: |
-    ##    UNIT_TEST_COMMENT="### Unit Test Results\n\`\`\`\n${UNIT_TEST_RESULTS}\n\`\`\`"
-    ##    PERFORMANCE_TEST_COMMENT="### Performance Test Results\n\`\`\`\n${PERFORMANCE_TEST_RESULTS}\n\`\`\`"
-    ##    ISSUE_BODY="${UNIT_TEST_COMMENT}\n\n${PERFORMANCE_TEST_COMMENT}"
-    ##    REPO_OWNER=$(echo $GITHUB_REPOSITORY | cut -d'/' -f1)
-    ##    REPO_NAME=$(echo $GITHUB_REPOSITORY | cut -d'/' -f2)
-    ##    echo "repo owner ${REPO_OWNER}"
-    ##    echo "repo name ${REPO_NAME}"
-    ##    gh issue create --repo "$REPO_OWNER/$REPO_NAME" --title "Test Results for sync branch ${{ env.DOWNSTREAM_MAIN }}" --body "$ISSUE_BODY"
-    ##  shell: bash
-    ##  env:
-    ##    GITHUB_TOKEN: ${{ inputs.github_token }}
-    ##    UNIT_TEST_RESULTS: ${{ env.UNIT_TEST_RESULTS }}
-    ##    PERFORMANCE_TEST_RESULTS: ${{ env.PERFORMANCE_TEST_RESULTS }}
 
     - name: Append Test Results to Issue
       if: env.rebase_approved == 'false'
@@ -251,16 +199,6 @@ runs:
         git checkout -b tmp-${DOWNSTREAM_DEVELOP}-$(date +%Y%m%d) origin/$DOWNSTREAM_DEVELOP
         git rebase origin/$DOWNSTREAM_MAIN  || true
       shell: bash
-
-    #- name: Checkout downstream main branch
-    #  run: git checkout -b tmp-${DOWNSTREAM_DEVELOP}-$(date +%Y%m%d) origin/$DOWNSTREAM_MAIN
-    #  shell: bash
-
-    #- name: Rebase develop onto tmp-sync-branch
-    #  run: |
-    #    git checkout $DOWNSTREAM_DEVELOP
-    #    git rebase tmp-${DOWNSTREAM_DEVELOP}-$(date +%Y%m%d) || true
-    #  shell: bash
 
     - name: Check for rebase conflicts
       id: check_conflicts
@@ -338,87 +276,6 @@ runs:
       shell: bash
 
 
-    #- name: Install Reviewdog
-    #  if: env.conflicts == 'true'
-    #  run: |
-    #    curl -sfL https://raw.githubusercontent.com/reviewdog/reviewdog/master/install.sh | sh -s -- -b /usr/local/bin
-    #  shell: bash
-
-    #- name: Create suggestions for conflicts
-    #  if: env.conflicts == 'true'
-    #  run: |
-    #    git diff --name-only --diff-filter=U | while read file; do
-    #      git show :1:"$file" > ancestor.txt
-    #      git show :2:"$file" > our-version.txt || echo "" > our-version.txt
-    #      git show :3:"$file" > their-version.txt || echo "" > their-version.txt
-    #      diff3 -m our-version.txt ancestor.txt their-version.txt > conflicts.txt
-    #      reviewdog -f=diff < conflicts.txt || true
-    #    done
-    #  shell: bash
-
-    #- name: Create suggestions for conflicts
-    #  if: env.conflicts == 'true'
-    #  run: |
-    #    git diff --name-only --diff-filter=U | while read file; do
-    #      if git ls-files -u "$file" | grep -q ':1:'; then
-    #        git show :1:"$file" > ancestor.txt
-    #      else
-    #        echo "" > ancestor.txt
-    #      fi
-    #      if git ls-files -u "$file" | grep -q ':2:'; then
-    #        git show :2:"$file" > our-version.txt
-    #      else
-    #        echo "" > our-version.txt
-    #      fi
-    #      if git ls-files -u "$file" | grep -q ':3:'; then
-    #        git show :3:"$file" > their-version.txt
-    #      else
-    #        echo "" > their-version.txt
-    #      fi
-    #      diff3 -m our-version.txt ancestor.txt their-version.txt > conflicts.txt
-    #      reviewdog -f=diff < conflicts.txt || true
-    #    done
-    #  shell: bash
-
-    #- name: Create Pull Request for upstream sync
-    #  run: |
-    #    REPO_OWNER=$(echo $GITHUB_REPOSITORY | cut -d'/' -f1)
-    #    REPO_NAME=$(echo $GITHUB_REPOSITORY | cut -d'/' -f2)
-    #    gh pr create --repo "$REPO_OWNER/$REPO_NAME" --title "Automated PR: Downstream develop rebase new changes" --body "This PR was created automatically by the Fork Maintenance System to sync changes from the downstream main into downstream develop." --base origin/${DOWNSTREAM_DEVELOP} --head tmp-${DOWNSTREAM_DEVELOP}-$(date +%Y%m%d)
-    #    #${{ inputs.pr_branch_prefix }}-sync-test-$(date +%Y%m%d) 
-    #    #upstream/${{ env.UPSTREAM_MAIN }}
-    #  env:
-    #    GITHUB_TOKEN: ${{ inputs.github_token }}
-    #  shell: bash
-
-    
-
-    
-    
-    #- name: Run reviewdog to suggest conflict resolutions
-    #  if: env.conflicts == 'true'
-    #  uses: reviewdog/action-suggester@v1
-    #  with:
-    #    github_token: ${{ inputs.github_token }}
-    #    tool_name: 'merge-conflict-suggester'
-    #    level: 'warning'
-    #    filter_mode: 'diff_context'
-    #    fail_on_error: 'false'
-    #    cleanup: 'true'
-
-    #- name: Create Pull Request for Downstream develop
-    #  #if: env.conflicts == 'false'
-    #  uses: peter-evans/create-pull-request@v4
-    #  id: create_pr_develop
-    #  with:
-    #    token: ${{ inputs.github_token }}
-    #    base: ${{ inputs.downstream_develop_branch }}
-    #    branch: tmp-${DOWNSTREAM_DEVELOP}-$(date +%Y%m%d)
-    #    #head: tmp-${DOWNSTREAM_DEVELOP}-$(date +%Y%m%d)
-    #    title: "Automated PR: Rebase ${ UPSTREAM_MAIN } into ${ DOWNSTREAM_DEVELOP }"
-    #    body: "This PR was created automatically by the Fork Maintenance System to rebase changes from Downstream main into the develop branch."
-    #    draft: false
-
     - name: Install 
       run: |
         pip install -e .
@@ -443,18 +300,6 @@ runs:
         echo "PERFORMANCE_TEST_RESULTS=$PERFORMANCE_TEST_RESULTS" >> $GITHUB_ENV
       shell: bash
 
-    ##- name: Comment test results on develop PR
-    ##  run: |
-    ##    UNIT_TEST_COMMENT="### Unit Test Results\n\`\`\`\n${UNIT_TEST_RESULTS}\n\`\`\`"
-    ##    PERFORMANCE_TEST_COMMENT="### Performance Test Results\n\`\`\`\n${PERFORMANCE_TEST_RESULTS}\n\`\`\`"
-    ##    #PR_URL_DEVELOP=$PR_URL    #(jq -r '.html_url' ${{ steps.create_pr_develop.outputs.pull_request }})
-    ##    echo "Commenting test results on develop PR..."
-    ##    gh pr comment $PR_URL -b "$UNIT_TEST_COMMENT\n\n$PERFORMANCE_TEST_COMMENT"
-    ##  shell: bash
-    ##  env:
-    ##    GITHUB_TOKEN: ${{ inputs.github_token }}
-    ##    UNIT_TEST_RESULTS: ${{ env.UNIT_TEST_RESULTS }}
-    ##    PERFORMANCE_TEST_RESULTS: ${{ env.PERFORMANCE_TEST_RESULTS }}
 
     - name: Append Test Results to Issue
       if: env.rebase_approved == 'false'
@@ -519,19 +364,6 @@ runs:
         echo "PERFORMANCE_TEST_RESULTS=$PERFORMANCE_TEST_RESULTS" >> $GITHUB_ENV
       shell: bash
 
-    ##- name: Create Issue with test results for release
-    ##  run: |
-    ##    UNIT_TEST_COMMENT="### Unit Test Results\n\`\`\`\n${UNIT_TEST_RESULTS}\n\`\`\`"
-    ##    PERFORMANCE_TEST_COMMENT="### Performance Test Results\n\`\`\`\n${PERFORMANCE_TEST_RESULTS}\n\`\`\`"
-    ##    ISSUE_BODY="${UNIT_TEST_COMMENT}\n\n${PERFORMANCE_TEST_COMMENT}"
-    ##    REPO_OWNER=$(echo $GITHUB_REPOSITORY | cut -d'/' -f1)
-    ##    REPO_NAME=$(echo $GITHUB_REPOSITORY | cut -d'/' -f2)
-    ##    gh issue create --repo "$REPO_OWNER/$REPO_NAME" --title "Test Results for release branch ${{ env.DOWNSTREAM_TESTING }}" --body "$ISSUE_BODY"
-    ##  shell: bash
-    ##  env:
-    ##    GITHUB_TOKEN: ${{ inputs.github_token }}
-    ##    UNIT_TEST_RESULTS: ${{ env.UNIT_TEST_RESULTS }}
-    ##    PERFORMANCE_TEST_RESULTS: ${{ env.PERFORMANCE_TEST_RESULTS }}
 
     - name: Append Test Results to Issue
       if: env.rebase_approved == 'false'
