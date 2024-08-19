@@ -340,8 +340,9 @@ runs:
       env:
         GITHUB_TOKEN: ${{ inputs.github_token }}
 
-    - name: Create Pull Request for downstream main to develop sync
+    - name: Create Pull Request for downstream develop sync
       id: create_pr
+      if: env.rebase_approved == 'false'
       run: |
         REPO_OWNER=$(echo $GITHUB_REPOSITORY | cut -d'/' -f1)
         REPO_NAME=$(echo $GITHUB_REPOSITORY | cut -d'/' -f2)
