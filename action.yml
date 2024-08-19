@@ -98,13 +98,45 @@ runs:
       env:
         GITHUB_TOKEN: ${{ inputs.github_token }}
 
+
+
     - name: Check for Comment Approval
       id: check_comment
       run: |
         REPO_OWNER=$(echo $GITHUB_REPOSITORY | cut -d'/' -f1)
         REPO_NAME=$(echo $GITHUB_REPOSITORY | cut -d'/' -f2)
-        comments=$(gh issue view ${{ env.issue_number }} --repo "$REPO_OWNER/$REPO_NAME" --json comments --jq '.comments[].body')
-        if echo "$comments" | grep -q 'proceed with rebase'; then
+        comments=$(gh issue view ${{ env.issue_number }} --repo "$REPO_OWNER/$REPO_NAME" --json comments)
+        
+        # Initialize rebase approval flag
+        rebase_approved=false
+        
+        # Loop through each comment
+        for row in $(echo "${comments}" | jq -r '.comments[] | @base64'); do
+            _jq() {
+                echo ${row} | base64 --decode | jq -r ${1}
+            }
+    
+            username=$(_jq '.author.login')
+            comment_body=$(_jq '.body')
+            
+            # Get the user's permissions for the repository
+            permission=$(gh api "repos/$REPO_OWNER/$REPO_NAME/collaborators/$username/permission" --jq '.permission')
+    
+            echo "User: $username"
+            echo "Permission: $permission"
+            echo "Comment: $comment_body"
+    
+            # Check if the user has sufficient permissions and if their comment approves the rebase
+            if [[ "$permission" == "admin" || "$permission" == "maintain" ]]; then
+                if echo "$comment_body" | grep -q 'proceed with rebase'; then
+                    rebase_approved=true
+                    break
+                fi
+            fi
+        done
+        
+        # Set the rebase approval status in the environment
+        if [ "$rebase_approved" = true ]; then
           echo "rebase_approved=true" >> $GITHUB_ENV
         else
           echo "rebase_approved=false" >> $GITHUB_ENV
@@ -112,6 +144,22 @@ runs:
       shell: bash
       env:
         GITHUB_TOKEN: ${{ inputs.github_token }}
+
+
+    #- name: Check for Comment Approval
+    #  id: check_comment
+    #  run: |
+    #    REPO_OWNER=$(echo $GITHUB_REPOSITORY | cut -d'/' -f1)
+    #    REPO_NAME=$(echo $GITHUB_REPOSITORY | cut -d'/' -f2)
+    #    comments=$(gh issue view ${{ env.issue_number }} --repo "$REPO_OWNER/$REPO_NAME" --json comments --jq '.comments[].body')
+    #    if echo "$comments" | grep -q 'proceed with rebase'; then
+    #      echo "rebase_approved=true" >> $GITHUB_ENV
+    #    else
+    #      echo "rebase_approved=false" >> $GITHUB_ENV
+    #    fi
+    #  shell: bash
+    #  env:
+    #    GITHUB_TOKEN: ${{ inputs.github_token }}
 
     - name: Checkout and update downstream main
       run: |
