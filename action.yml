@@ -17,6 +17,9 @@ inputs:
   pr_branch_prefix:
     description: "Prefix for the PR branch name"
     required: true
+  requirements_command:
+    description: "Command to install needed packages"
+    required: true
   unit_test_command:
     description: "Command to run unit tests"
     required: true
@@ -203,6 +206,7 @@ runs:
     - name: Install dependencies
       run: |
         #pip install -r requirements.txt
+        ${{ inputs.requirements_command }}
         pip install pytest
         pip install -e .
       shell: bash
