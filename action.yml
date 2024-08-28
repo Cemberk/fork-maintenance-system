@@ -26,10 +26,25 @@ inputs:
   performance_test_command:
     description: "Command to run performance tests"
     required: true
+  docker_image:
+    description: "Docker image to use"
+    required: true
+  docker_options:
+    description: "Docker run options (e.g., '--gpus all' for NVIDIA or '--device=/dev/kfd' for AMD)"
+    required: true
 
 runs:
   using: "composite"
   steps:
+    - name: Prepare Docker run command
+      id: prepare_docker_command
+      run: |
+        EXTERNAL_DIR="/tmp/docker_run_$(date +%s)"
+        mkdir -p $EXTERNAL_DIR
+        echo "docker run -v $(pwd):/myworkspace --ipc=host --network host -p 3000:3000 ${{ inputs.docker_options }} --name my_container ${{ inputs.docker_image }} /bin/bash -c" > $EXTERNAL_DIR/run_docker.sh
+        echo "EXTERNAL_DIR=$EXTERNAL_DIR" >> $GITHUB_ENV
+      shell: bash
+  
     - name: Check out code
       uses: actions/checkout@v4
       with:
@@ -203,54 +218,61 @@ runs:
       with:
         python-version: '3.x'
 
-    - name: Install dependencies
-      run: |
-        #pip install -r requirements.txt
-        ${{ inputs.requirements_command }}
-        pip install pytest
-        pip install -e .
-      shell: bash
-
-    - name: Run unit tests for upstream sync
-      if: env.rebase_approved == 'false'
-      run: |
-        echo "Running unit tests for upstream sync..."
-        echo "" > UNIT_TEST_RESULTS.txt
-        ${{ inputs.unit_test_command }} 2>&1 | tee UNIT_TEST_RESULTS.txt  || true
-        echo "Unit Test Results: $(cat UNIT_TEST_RESULTS.txt)"
-        echo "UNIT_TEST_RESULTS=$(cat UNIT_TEST_RESULTS.txt)" >> $GITHUB_ENV
-      shell: bash
-
-    #- name: Run unit tests for upstream sync
+    #- name: Install dependencies
     #  run: |
-    #    echo "Running unit tests for upstream sync..."
-    #    UNIT_TEST_RESULTS=$(eval "${{ inputs.unit_test_command }} 2>&1")
-    #    echo "Unit Test Results: $UNIT_TEST_RESULTS"
-    #    echo "UNIT_TEST_RESULTS=$UNIT_TEST_RESULTS" >> $GITHUB_ENV
+    #    #pip install -r requirements.txt
+    #    ${{ inputs.requirements_command }}
+    #    pip install pytest
+    #    pip install -e .
     #  shell: bash
 
-    - name: Run performance tests for upstream sync
+    - name: Run Docker Container for Requirements
+      run: |
+        bash ${{ env.EXTERNAL_DIR }}/run_docker.sh "cd /myworkspace && ${{ inputs.requirements_command }}"
+        bash ${{ env.EXTERNAL_DIR }}/run_docker.sh "cd /myworkspace && pip install -e ."
+      shell: bash
+
+
+    
+
+    ###- name: Run unit tests for upstream sync
+    ###  if: env.rebase_approved == 'false'
+    ###  run: |
+    ###    echo "Running unit tests for upstream sync..."
+    ###    echo "" > UNIT_TEST_RESULTS.txt
+    ###    ${{ inputs.unit_test_command }} 2>&1 | tee UNIT_TEST_RESULTS.txt  || true
+    ###    echo "Unit Test Results: $(cat UNIT_TEST_RESULTS.txt)"
+    ###    echo "UNIT_TEST_RESULTS=$(cat UNIT_TEST_RESULTS.txt)" >> $GITHUB_ENV
+    ###  shell: bash
+
+    ###- name: Run performance tests for upstream sync
+    ###  if: env.rebase_approved == 'false'
+    ###  run: |
+    ###    echo "Running performance tests for upstream sync..."
+    ###    PERFORMANCE_TEST_RESULTS=$(eval "${{ inputs.performance_test_command }} 2>&1") || true
+    ###    echo "Performance Test Results: $PERFORMANCE_TEST_RESULTS"
+    ###    echo "PERFORMANCE_TEST_RESULTS=$PERFORMANCE_TEST_RESULTS" >> $GITHUB_ENV
+    ###  shell: bash
+
+    
+    - name: Run Docker Container for Unit Tests
       if: env.rebase_approved == 'false'
       run: |
-        echo "Running performance tests for upstream sync..."
-        PERFORMANCE_TEST_RESULTS=$(eval "${{ inputs.performance_test_command }} 2>&1") || true
+        echo "Running unit tests inside Docker..."
+        echo "" > ${{ env.EXTERNAL_DIR }}/UNIT_TEST_RESULTS.txt
+        bash ${{ env.EXTERNAL_DIR }}/run_docker.sh "cd /myworkspace && ${{ inputs.unit_test_command }} 2>&1 | tee /myworkspace/UNIT_TEST_RESULTS.txt" || true
+        echo "Unit Test Results: $(cat ${{ env.EXTERNAL_DIR }}/UNIT_TEST_RESULTS.txt)"
+        echo "UNIT_TEST_RESULTS=$(cat ${{ env.EXTERNAL_DIR }}/UNIT_TEST_RESULTS.txt)" >> $GITHUB_ENV
+      shell: bash
+
+    - name: Run Docker Container for Performance Tests
+      if: env.rebase_approved == 'false'
+      run: |
+        echo "Running performance tests inside Docker..."
+        PERFORMANCE_TEST_RESULTS=$(bash ${{ env.EXTERNAL_DIR }}/run_docker.sh "cd /myworkspace && ${{ inputs.performance_test_command }} 2>&1") || true
         echo "Performance Test Results: $PERFORMANCE_TEST_RESULTS"
         echo "PERFORMANCE_TEST_RESULTS=$PERFORMANCE_TEST_RESULTS" >> $GITHUB_ENV
       shell: bash
-
-    #- name: Comment test results on upstream sync PR
-    #  run: |
-    #    UNIT_TEST_COMMENT="### Unit Test Results\n\`\`\`\n${UNIT_TEST_RESULTS}\n\`\`\`"
-    #    PERFORMANCE_TEST_COMMENT="### Performance Test Results\n\`\`\`\n${PERFORMANCE_TEST_RESULTS}\n\`\`\`"
-    #    git checkout ${{ env.DOWNSTREAM_MAIN }}
-    #    PR_URL_UPSTREAM_SYNC=$(gh pr view --json url -q .url)
-    #    echo "Commenting test results on upstream sync PR..."
-    #    gh pr comment $PR_URL_UPSTREAM_SYNC -b "$UNIT_TEST_COMMENT\n\n$PERFORMANCE_TEST_COMMENT"
-    #  shell: bash
-    #  env:
-    #    GITHUB_TOKEN: ${{ inputs.github_token }}
-    #    UNIT_TEST_RESULTS: ${{ env.UNIT_TEST_RESULTS }}
-    #    PERFORMANCE_TEST_RESULTS: ${{ env.PERFORMANCE_TEST_RESULTS }}
 
     ##- name: Create Issue with test results for upstream sync
     ##  run: |
@@ -470,26 +492,45 @@ runs:
     #    body: "This PR was created automatically by the Fork Maintenance System to rebase changes from Downstream main into the develop branch."
     #    draft: false
 
-    - name: Install 
+    - name: Run Docker Container for Install
       run: |
-        pip install -e .
+        bash ${{ env.EXTERNAL_DIR }}/run_docker.sh "cd /myworkspace && pip install -e ."
       shell: bash
 
     #develop tests 
-    - name: Run unit tests for develop
+    ###- name: Run unit tests for develop
+    ###  if: env.rebase_approved == 'false'
+    ###  run: |
+    ###    echo "Running unit tests for develop..."
+    ###    UNIT_TEST_RESULTS=$(eval "${{ inputs.unit_test_command }} 2>&1")
+    ###    echo "Unit Test Results: $UNIT_TEST_RESULTS"
+    ###    echo "UNIT_TEST_RESULTS=$UNIT_TEST_RESULTS" >> $GITHUB_ENV
+    ###  shell: bash
+
+    ###- name: Run performance tests for develop
+    ###  if: env.rebase_approved == 'false'
+    ###  run: |
+    ###    echo "Running performance tests for develop..."
+    ###    PERFORMANCE_TEST_RESULTS=$(eval "${{ inputs.performance_test_command }} 2>&1")
+    ###    echo "Performance Test Results: $PERFORMANCE_TEST_RESULTS"
+    ###    echo "PERFORMANCE_TEST_RESULTS=$PERFORMANCE_TEST_RESULTS" >> $GITHUB_ENV
+    ###  shell: bash
+
+    - name: Run Docker Container for Unit Tests
       if: env.rebase_approved == 'false'
       run: |
-        echo "Running unit tests for develop..."
-        UNIT_TEST_RESULTS=$(eval "${{ inputs.unit_test_command }} 2>&1")
-        echo "Unit Test Results: $UNIT_TEST_RESULTS"
-        echo "UNIT_TEST_RESULTS=$UNIT_TEST_RESULTS" >> $GITHUB_ENV
+        echo "Running unit tests inside Docker..."
+        echo "" > ${{ env.EXTERNAL_DIR }}/UNIT_TEST_RESULTS.txt
+        bash ${{ env.EXTERNAL_DIR }}/run_docker.sh "cd /myworkspace && ${{ inputs.unit_test_command }} 2>&1 | tee /myworkspace/UNIT_TEST_RESULTS.txt" || true
+        echo "Unit Test Results: $(cat ${{ env.EXTERNAL_DIR }}/UNIT_TEST_RESULTS.txt)"
+        echo "UNIT_TEST_RESULTS=$(cat ${{ env.EXTERNAL_DIR }}/UNIT_TEST_RESULTS.txt)" >> $GITHUB_ENV
       shell: bash
 
-    - name: Run performance tests for develop
+    - name: Run Docker Container for Performance Tests
       if: env.rebase_approved == 'false'
       run: |
-        echo "Running performance tests for develop..."
-        PERFORMANCE_TEST_RESULTS=$(eval "${{ inputs.performance_test_command }} 2>&1")
+        echo "Running performance tests inside Docker..."
+        PERFORMANCE_TEST_RESULTS=$(bash ${{ env.EXTERNAL_DIR }}/run_docker.sh "cd /myworkspace && ${{ inputs.performance_test_command }} 2>&1") || true
         echo "Performance Test Results: $PERFORMANCE_TEST_RESULTS"
         echo "PERFORMANCE_TEST_RESULTS=$PERFORMANCE_TEST_RESULTS" >> $GITHUB_ENV
       shell: bash
@@ -547,25 +588,44 @@ runs:
       env:
         GITHUB_TOKEN: ${{ inputs.github_token }}
 
-    - name: Install 
+    - name: Run Docker Container for Install
       run: |
-        pip install -e .
+        bash ${{ env.EXTERNAL_DIR }}/run_docker.sh "cd /myworkspace && pip install -e ."
       shell: bash
 
-    - name: Run unit tests for release
+    ###- name: Run unit tests for release
+    ###  if: env.rebase_approved == 'false'
+    ###  run: |
+    ###    echo "Running unit tests for release..."
+    ###    UNIT_TEST_RESULTS=$(eval "${{ inputs.unit_test_command }} 2>&1")
+    ###    echo "Unit Test Results: $UNIT_TEST_RESULTS"
+    ###    echo "UNIT_TEST_RESULTS=$UNIT_TEST_RESULTS" >> $GITHUB_ENV
+    ###  shell: bash
+
+    ###- name: Run performance tests for release
+    ###  if: env.rebase_approved == 'false'
+    ###  run: |
+    ###    echo "Running performance tests for release..."
+    ###    PERFORMANCE_TEST_RESULTS=$(eval "${{ inputs.performance_test_command }} 2>&1")
+    ###    echo "Performance Test Results: $PERFORMANCE_TEST_RESULTS"
+    ###    echo "PERFORMANCE_TEST_RESULTS=$PERFORMANCE_TEST_RESULTS" >> $GITHUB_ENV
+    ###  shell: bash
+
+    - name: Run Docker Container for Unit Tests
       if: env.rebase_approved == 'false'
       run: |
-        echo "Running unit tests for release..."
-        UNIT_TEST_RESULTS=$(eval "${{ inputs.unit_test_command }} 2>&1")
-        echo "Unit Test Results: $UNIT_TEST_RESULTS"
-        echo "UNIT_TEST_RESULTS=$UNIT_TEST_RESULTS" >> $GITHUB_ENV
+        echo "Running unit tests inside Docker..."
+        echo "" > ${{ env.EXTERNAL_DIR }}/UNIT_TEST_RESULTS.txt
+        bash ${{ env.EXTERNAL_DIR }}/run_docker.sh "cd /myworkspace && ${{ inputs.unit_test_command }} 2>&1 | tee /myworkspace/UNIT_TEST_RESULTS.txt" || true
+        echo "Unit Test Results: $(cat ${{ env.EXTERNAL_DIR }}/UNIT_TEST_RESULTS.txt)"
+        echo "UNIT_TEST_RESULTS=$(cat ${{ env.EXTERNAL_DIR }}/UNIT_TEST_RESULTS.txt)" >> $GITHUB_ENV
       shell: bash
 
-    - name: Run performance tests for release
+    - name: Run Docker Container for Performance Tests
       if: env.rebase_approved == 'false'
       run: |
-        echo "Running performance tests for release..."
-        PERFORMANCE_TEST_RESULTS=$(eval "${{ inputs.performance_test_command }} 2>&1")
+        echo "Running performance tests inside Docker..."
+        PERFORMANCE_TEST_RESULTS=$(bash ${{ env.EXTERNAL_DIR }}/run_docker.sh "cd /myworkspace && ${{ inputs.performance_test_command }} 2>&1") || true
         echo "Performance Test Results: $PERFORMANCE_TEST_RESULTS"
         echo "PERFORMANCE_TEST_RESULTS=$PERFORMANCE_TEST_RESULTS" >> $GITHUB_ENV
       shell: bash
@@ -598,7 +658,12 @@ runs:
         UNIT_TEST_RESULTS: ${{ env.UNIT_TEST_RESULTS }}
         PERFORMANCE_TEST_RESULTS: ${{ env.PERFORMANCE_TEST_RESULTS }}
 
-
+    - name: Clean up Docker Container and External Directory
+      run: |
+        docker stop my_container
+        docker rm my_container
+        rm -rf ${{ env.EXTERNAL_DIR }}
+      shell: bash
 
 # Example schedule.json
 # {
