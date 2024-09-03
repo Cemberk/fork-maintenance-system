@@ -2,9 +2,6 @@
 name: "Fork Maintenance System"
 description: "A GitHub Action to maintain forked repositories by checking for misspellings, resolving merge conflicts, running regression triage, and providing code suggestions."
 author: "Cemberk"
-defaults:
-  run:
-    shell: bash -el {0}
 
 inputs:
   github_token:
@@ -55,7 +52,7 @@ runs:
         echo "${{ inputs.conda_environment }}" > ../environment.yml
         conda env create -f ../environment.yml
         conda init
-      shell: bash
+      shell: bash -el {0}
 
     - uses: conda-incubator/setup-miniconda@v2
       with:
@@ -70,7 +67,7 @@ runs:
       run: |
         conda activate $(head -n 1 ../environment.yml | cut -d' ' -f2)
         pip install -e .
-      shell: bash
+      shell: bash -el {0}
 
     - name: Fetch schedule JSON
       run: echo '${{ inputs.schedule_json }}' > schedule.json
