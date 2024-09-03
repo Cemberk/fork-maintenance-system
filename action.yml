@@ -50,8 +50,9 @@ runs:
     - name: Create Conda environment from input
       run: |
         echo "${{ inputs.conda_environment }}" > ../environment.yml
-        conda env create -f ../environment.yml
+        conda env create -f ../environment.yml --no-cache
         conda init
+        conda list
       shell: bash -el {0}
 
     #- uses: conda-incubator/setup-miniconda@v2
