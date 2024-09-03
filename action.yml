@@ -71,6 +71,7 @@ runs:
       run: |
         conda activate $(head -n 1 ../environment.yml | cut -d' ' -f2)
         ${{inputs.extra_install_command}}
+        conda install tokenizers=0.19 --force-reinstall -c conda-forge
         pip install -e .
       shell: bash -el {0}
 
@@ -228,10 +229,10 @@ runs:
     #    git switch -c ${{ inputs.pr_branch_prefix }}-sync-test-$(date +%Y%m%d) upstream/$UPSTREAM_MAIN
     #  shell: bash
 
-    - name: Set up Python
-      uses: actions/setup-python@v2
-      with:
-        python-version: '3.x'
+    #- name: Set up Python
+    #  uses: actions/setup-python@v2
+    #  with:
+    #    python-version: '3.x'
 
     ###- name: Install dependencies
     ###  run: |
