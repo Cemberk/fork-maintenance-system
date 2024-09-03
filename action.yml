@@ -26,12 +26,11 @@ inputs:
   performance_test_command:
     description: "Command to run performance tests"
     required: true
-
+defaults:
+  run:
+  shell: bash -l {0}
 runs:
   using: "composite"
-  defaults:
-      run:
-        shell: bash -l {0}
   steps:
     - name: Check out code
       uses: actions/checkout@v4
