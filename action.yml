@@ -54,6 +54,10 @@ runs:
         echo "${{ inputs.conda_environment }}" > ../environment.yml
         conda env create -f ../environment.yml
         conda init
+      shell: bash
+
+    - name: Activate Conda environment
+      run: |
         conda activate $(head -n 1 ../environment.yml | cut -d' ' -f2)
         pip install -e .
       shell: bash
