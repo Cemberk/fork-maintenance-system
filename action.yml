@@ -244,7 +244,7 @@ runs:
         ${{ inputs.unit_test_command }} 2>&1 | tee UNIT_TEST_RESULTS.txt  || true
         echo "Unit Test Results: $(cat UNIT_TEST_RESULTS.txt)"
         echo "UNIT_TEST_RESULTS=$(cat UNIT_TEST_RESULTS.txt)" >> $GITHUB_ENV
-      shell: bash
+      shell: bash -el {0}
 
     #- name: Run unit tests for upstream sync
     #  run: |
