@@ -54,14 +54,14 @@ runs:
         conda init
       shell: bash -el {0}
 
-    - uses: conda-incubator/setup-miniconda@v2
-      with:
-        activate-environment: anaconda-client-env
-        environment-file: etc/example-environment.yml
-        auto-activate-base: false
-    - run: |
-        conda info
-        conda list
+    #- uses: conda-incubator/setup-miniconda@v2
+    #  with:
+    #    activate-environment: anaconda-client-env
+    #    environment-file: etc/example-environment.yml
+    #    auto-activate-base: false
+    #- run: |
+    #    conda info
+    #    conda list
 
     - name: Activate Conda environment
       run: |
