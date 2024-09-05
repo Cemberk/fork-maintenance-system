@@ -98,6 +98,12 @@ runs:
         #git switch -c ${{ inputs.pr_branch_prefix }}-sync-test-$(date +%Y%m%d) upstream/$UPSTREAM_MAIN
       shell: bash
 
+    - name: Install GitHub CLI
+      run: |
+        sudo apt-get update
+        sudo apt-get install gh
+      shell: bash
+
     - name: Find or Create Approval Issue
       id: find_or_create_issue
       run: |
