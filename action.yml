@@ -83,8 +83,9 @@ runs:
     
     - name: Add upstream remote
       run: |
+        git config --get remote.origin.url
         git remote add upstream ${{ inputs.upstream_repo }}
-        git remote set-url --push upstream no_push
+    #    git remote set-url --push upstream no_push
       shell: bash
     
     - name: Fetch upstream changes
