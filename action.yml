@@ -36,14 +36,14 @@ inputs:
 runs:
   using: "composite"
   steps:
-    - name: Prepare Docker run command
-      id: prepare_docker_command
-      run: |
-        EXTERNAL_DIR="/tmp/docker_run_$(date +%s)"
-        mkdir -p $EXTERNAL_DIR
-        echo "docker run -v $(pwd):/myworkspace --ipc=host --network host -p 3000:3000 ${{ inputs.docker_options }} --name my_container ${{ inputs.docker_image }} /bin/bash -c" > $EXTERNAL_DIR/run_docker.sh
-        echo "EXTERNAL_DIR=$EXTERNAL_DIR" >> $GITHUB_ENV
-      shell: bash
+    #- name: Prepare Docker run command
+    #  id: prepare_docker_command
+    #  run: |
+    #    EXTERNAL_DIR="/tmp/docker_run_$(date +%s)"
+    #    mkdir -p $EXTERNAL_DIR
+    #    echo "docker run -v $(pwd):/myworkspace --ipc=host --network host -p 3000:3000 ${{ inputs.docker_options }} --name my_container ${{ inputs.docker_image }} /bin/bash -c" > $EXTERNAL_DIR/run_docker.sh
+    #    echo "EXTERNAL_DIR=$EXTERNAL_DIR" >> $GITHUB_ENV
+    #  shell: bash
   
     - name: Check out code
       uses: actions/checkout@v4
@@ -228,10 +228,10 @@ runs:
     #    git switch -c ${{ inputs.pr_branch_prefix }}-sync-test-$(date +%Y%m%d) upstream/$UPSTREAM_MAIN
     #  shell: bash
 
-    - name: Set up Python
-      uses: actions/setup-python@v2
-      with:
-        python-version: '3.x'
+    ##- name: Set up Python
+    ##  uses: actions/setup-python@v2
+    ##  with:
+    ##    python-version: '3.x'
 
     #- name: Install dependencies
     #  run: |
@@ -243,8 +243,8 @@ runs:
 
     - name: Run Docker Container for Requirements
       run: |
-        bash ${{ env.EXTERNAL_DIR }}/run_docker.sh "cd /myworkspace && ${{ inputs.requirements_command }}"
-        bash ${{ env.EXTERNAL_DIR }}/run_docker.sh "cd /myworkspace && pip install -e ."
+        ${{ inputs.requirements_command }}
+        pip install -e .
       shell: bash
 
 
@@ -274,17 +274,17 @@ runs:
       if: env.rebase_approved == 'false'
       run: |
         echo "Running unit tests inside Docker..."
-        echo "" > ${{ env.EXTERNAL_DIR }}/UNIT_TEST_RESULTS.txt
-        bash ${{ env.EXTERNAL_DIR }}/run_docker.sh "cd /myworkspace && ${{ inputs.unit_test_command }} 2>&1 | tee /myworkspace/UNIT_TEST_RESULTS.txt" || true
-        echo "Unit Test Results: $(cat ${{ env.EXTERNAL_DIR }}/UNIT_TEST_RESULTS.txt)"
-        echo "UNIT_TEST_RESULTS=$(cat ${{ env.EXTERNAL_DIR }}/UNIT_TEST_RESULTS.txt)" >> $GITHUB_ENV
+        #echo "" > ${{ env.EXTERNAL_DIR }}/UNIT_TEST_RESULTS.txt
+        ${{ inputs.unit_test_command }} 2>&1 | tee ../UNIT_TEST_RESULTS.txt || true
+        echo "Unit Test Results: $(cat ../UNIT_TEST_RESULTS.txt)"
+        echo "UNIT_TEST_RESULTS=$(cat ../UNIT_TEST_RESULTS.txt)" >> $GITHUB_ENV
       shell: bash
 
     - name: Run Docker Container for Performance Tests
       if: env.rebase_approved == 'false'
       run: |
         echo "Running performance tests inside Docker..."
-        PERFORMANCE_TEST_RESULTS=$(bash ${{ env.EXTERNAL_DIR }}/run_docker.sh "cd /myworkspace && ${{ inputs.performance_test_command }} 2>&1") || true
+        PERFORMANCE_TEST_RESULTS=$(${{ inputs.performance_test_command }} 2>&1) || true
         echo "Performance Test Results: $PERFORMANCE_TEST_RESULTS"
         echo "PERFORMANCE_TEST_RESULTS=$PERFORMANCE_TEST_RESULTS" >> $GITHUB_ENV
       shell: bash
@@ -509,7 +509,7 @@ runs:
 
     - name: Run Docker Container for Install
       run: |
-        bash ${{ env.EXTERNAL_DIR }}/run_docker.sh "cd /myworkspace && pip install -e ."
+        pip install -e .
       shell: bash
 
     #develop tests 
@@ -536,16 +536,16 @@ runs:
       run: |
         echo "Running unit tests inside Docker..."
         echo "" > ${{ env.EXTERNAL_DIR }}/UNIT_TEST_RESULTS.txt
-        bash ${{ env.EXTERNAL_DIR }}/run_docker.sh "cd /myworkspace && ${{ inputs.unit_test_command }} 2>&1 | tee /myworkspace/UNIT_TEST_RESULTS.txt" || true
-        echo "Unit Test Results: $(cat ${{ env.EXTERNAL_DIR }}/UNIT_TEST_RESULTS.txt)"
-        echo "UNIT_TEST_RESULTS=$(cat ${{ env.EXTERNAL_DIR }}/UNIT_TEST_RESULTS.txt)" >> $GITHUB_ENV
+        bash ${{ inputs.unit_test_command }} 2>&1 | tee ../UNIT_TEST_RESULTS.txt" || true
+        echo "Unit Test Results: $(cat ../UNIT_TEST_RESULTS.txt)"
+        echo "UNIT_TEST_RESULTS=$(cat ../UNIT_TEST_RESULTS.txt)" >> $GITHUB_ENV
       shell: bash
 
     - name: Run Docker Container for Performance Tests
       if: env.rebase_approved == 'false'
       run: |
         echo "Running performance tests inside Docker..."
-        PERFORMANCE_TEST_RESULTS=$(bash ${{ env.EXTERNAL_DIR }}/run_docker.sh "cd /myworkspace && ${{ inputs.performance_test_command }} 2>&1") || true
+        PERFORMANCE_TEST_RESULTS=$(${{ inputs.performance_test_command }} 2>&1") || true
         echo "Performance Test Results: $PERFORMANCE_TEST_RESULTS"
         echo "PERFORMANCE_TEST_RESULTS=$PERFORMANCE_TEST_RESULTS" >> $GITHUB_ENV
       shell: bash
