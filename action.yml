@@ -42,7 +42,7 @@ runs:
         EXTERNAL_DIR="/tmp/docker_run_$(date +%s)"
         mkdir -p $EXTERNAL_DIR
         # Start the Docker container
-        CONTAINER_ID=$(docker run -d -v $(pwd):/myworkspace --network host -p 3000:3000 ${{ inputs.docker_options }} --name my_container ${{ inputs.docker_image }} /bin/bash -c "tail -f /dev/null")
+        CONTAINER_ID=$(docker run -d -v $(pwd):/myworkspace -p 3000:3000 ${{ inputs.docker_options }} --name my_container ${{ inputs.docker_image }} /bin/bash -c "tail -f /dev/null")
         
         # Save the run script
         echo "docker exec -it $CONTAINER_ID /bin/bash -c" > $EXTERNAL_DIR/run_docker.sh
