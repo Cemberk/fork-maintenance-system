@@ -131,7 +131,13 @@ runs:
         echo "DOWNSTREAM_TESTING=$DOWNSTREAM_TESTING" >> $GITHUB_ENV
         echo "COMMITS=$COMMITS" >> $GITHUB_ENV
       shell: bash
-    
+
+    - name: Ensure permissions for .git directory
+      run: |
+        sudo chmod -R u+w .git || true
+        ls -l .git/
+      shell: bash
+        
     - name: Add upstream remote
       run: |
         #git config --get remote.origin.url
