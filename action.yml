@@ -171,29 +171,29 @@ runs:
     ##    && sudo apt install gh -y
     ##  shell: bash
 
-    - name: Install dependencies based on OS
-      run: |
-        # Detect the OS distribution
-        if [ -f /etc/os-release ]; then
-          . /etc/os-release
-          OS=$ID
-        else
-          OS=$(uname -s)
-        fi
+    #- name: Install dependencies based on OS
+    #  run: |
+    #    # Detect the OS distribution
+    #    if [ -f /etc/os-release ]; then
+    #      . /etc/os-release
+    #      OS=$ID
+    #    else
+    #      OS=$(uname -s)
+    #    fi
 
-        # Install packages based on OS
-        if [ "$OS" == "ubuntu" ] || [ "$OS" == "debian" ]; then
-          echo "Detected Ubuntu/Debian. Installing using apt..."
-          sudo apt-get update
-          sudo apt-get install -y wget apt-transport-https software-properties-common dpkg
-        elif [ "$OS" == "centos" ] || [ "$OS" == "rhel" ] || [ "$OS" == "fedora" ]; then
-          echo "Detected CentOS/RHEL/Fedora. Installing using yum..."
-          sudo yum install -y wget yum-utils
-        else
-          echo "Unsupported OS: $OS"
-          exit 1
-        fi
-      shell: bash
+    #    # Install packages based on OS
+    #    if [ "$OS" == "ubuntu" ] || [ "$OS" == "debian" ]; then
+    #      echo "Detected Ubuntu/Debian. Installing using apt..."
+    #      sudo apt-get update
+    #      sudo apt-get install -y wget apt-transport-https software-properties-common dpkg
+    #    elif [ "$OS" == "centos" ] || [ "$OS" == "rhel" ] || [ "$OS" == "fedora" ]; then
+    #      echo "Detected CentOS/RHEL/Fedora. Installing using yum..."
+    #      sudo yum install -y wget yum-utils
+    #    else
+    #      echo "Unsupported OS: $OS"
+    #      exit 1
+    #    fi
+    #  shell: bash
 
     - name: Install GitHub CLI based on OS
       run: |
