@@ -160,15 +160,68 @@ runs:
         #git switch -c ${{ inputs.pr_branch_prefix }}-sync-test-$(date +%Y%m%d) upstream/$UPSTREAM_MAIN
       shell: bash
 
-    - name: Install GitHub CLI
+    ##- name: Install GitHub CLI
+    ##  run: |
+    ##    (type -p wget >/dev/null || (sudo apt update && sudo apt-get install wget -y)) \
+    ##    && sudo mkdir -p -m 755 /etc/apt/keyrings \
+    ##    && wget -qO- https://cli.github.com/packages/githubcli-archive-keyring.gpg | sudo tee /etc/apt/keyrings/githubcli-archive-keyring.gpg > /dev/null \
+    ##    && sudo chmod go+r /etc/apt/keyrings/githubcli-archive-keyring.gpg \
+    ##    && echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null \
+    ##    && sudo apt update \
+    ##    && sudo apt install gh -y
+    ##  shell: bash
+
+    - name: Install dependencies based on OS
       run: |
-        (type -p wget >/dev/null || (sudo apt update && sudo apt-get install wget -y)) \
-        && sudo mkdir -p -m 755 /etc/apt/keyrings \
-        && wget -qO- https://cli.github.com/packages/githubcli-archive-keyring.gpg | sudo tee /etc/apt/keyrings/githubcli-archive-keyring.gpg > /dev/null \
-        && sudo chmod go+r /etc/apt/keyrings/githubcli-archive-keyring.gpg \
-        && echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null \
-        && sudo apt update \
-        && sudo apt install gh -y
+        # Detect the OS distribution
+        if [ -f /etc/os-release ]; then
+          . /etc/os-release
+          OS=$ID
+        else
+          OS=$(uname -s)
+        fi
+
+        # Install packages based on OS
+        if [ "$OS" == "ubuntu" ] || [ "$OS" == "debian" ]; then
+          echo "Detected Ubuntu/Debian. Installing using apt..."
+          sudo apt-get update
+          sudo apt-get install -y wget apt-transport-https software-properties-common dpkg
+        elif [ "$OS" == "centos" ] || [ "$OS" == "rhel" ] || [ "$OS" == "fedora" ]; then
+          echo "Detected CentOS/RHEL/Fedora. Installing using yum..."
+          sudo yum install -y wget yum-utils
+        else
+          echo "Unsupported OS: $OS"
+          exit 1
+        fi
+      shell: bash
+
+    - name: Install GitHub CLI based on OS
+      run: |
+        # Detect the OS distribution
+        if [ -f /etc/os-release ]; then
+          . /etc/os-release
+          OS=$ID
+        else
+          OS=$(uname -s)
+        fi
+
+        # Install GitHub CLI based on OS
+        if [ "$OS" == "ubuntu" ] || [ "$OS" == "debian" ]; then
+          echo "Installing GitHub CLI on Ubuntu/Debian..."
+          sudo mkdir -p -m 755 /etc/apt/keyrings
+          wget -qO- https://cli.github.com/packages/githubcli-archive-keyring.gpg | sudo tee /etc/apt/keyrings/githubcli-archive-keyring.gpg > /dev/null
+          sudo chmod go+r /etc/apt/keyrings/githubcli-archive-keyring.gpg
+          echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null
+          sudo apt-get update
+          sudo apt-get install -y gh
+        elif [ "$OS" == "centos" ] || [ "$OS" == "rhel" ] || [ "$OS" == "fedora" ]; then
+          echo "Installing GitHub CLI on CentOS/RHEL/Fedora..."
+          sudo yum-config-manager --add-repo https://cli.github.com/packages/rpm/gh-cli.repo
+          sudo yum install -y gh
+        else
+          echo "Unsupported OS: $OS"
+          exit 1
+        fi
       shell: bash
 
     - name: Find or Create Approval Issue
