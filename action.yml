@@ -217,7 +217,7 @@ runs:
         elif [ "$OS" == "centos" ] || [ "$OS" == "rhel" ] || [ "$OS" == "fedora" ]; then
           echo "Installing GitHub CLI on CentOS/RHEL/Fedora..."
           sudo yum-config-manager --add-repo https://cli.github.com/packages/rpm/gh-cli.repo
-          sudo yum install -y gh
+          sudo yum install -y gh || true
         else
           echo "Unsupported OS: $OS"
           exit 1
