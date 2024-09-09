@@ -680,6 +680,7 @@ runs:
         PERFORMANCE_TEST_RESULTS: ${{ env.PERFORMANCE_TEST_RESULTS }}
 
     - name: Clean up Docker Container and External Directory
+      if: always()
       run: |
         docker stop my_container
         docker rm my_container
