@@ -91,7 +91,7 @@ runs:
     
         # If you need to pull submodules (if applicable)
         git submodule update --init --recursive
-
+      shell: bash
 
     
       
