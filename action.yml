@@ -53,11 +53,47 @@ runs:
       shell: bash
 
   
-    - name: Check out code
-      uses: actions/checkout@v4
-      with:
-        token: ${{ inputs.github_token }}
-        clean: false
+    #- name: Check out code
+    #  uses: actions/checkout@v4
+    #  with:
+    #    token: ${{ inputs.github_token }}
+    #    clean: false
+
+    - name: Custom Git Checkout
+      run: |
+        # Set repository URL and target directory
+        REPO_URL="https://github.com/${{ github.repository }}"
+        TARGET_DIR="${{ github.workspace }}/repository"
+    
+        # Create target directory if it doesn't exist
+        mkdir -p $TARGET_DIR
+    
+        # Navigate to the working directory
+        cd $TARGET_DIR
+    
+        # Initialize a new Git repository
+        git init
+    
+        # Set up safe.directory
+        git config --global --add safe.directory $TARGET_DIR
+    
+        # Add remote origin
+        git remote add origin $REPO_URL
+    
+        # Fetch the repository contents
+        git fetch origin ${{ github.ref }}
+    
+        # Checkout the current branch or commit
+        git checkout FETCH_HEAD
+    
+        # Set permissions for .git directory if needed (modify as required)
+        sudo chmod -R u+w .git
+    
+        # If you need to pull submodules (if applicable)
+        git submodule update --init --recursive
+
+
+    
       
     - name: Set up Git
       run: |
