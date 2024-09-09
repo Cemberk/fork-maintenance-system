@@ -105,7 +105,7 @@ runs:
         git config --global user.name 'github-actions[bot]'
         git config --global user.email 'github-actions[bot]@users.noreply.github.com'
         git config --global credential.helper '!f() { sleep 1; echo "username=git token=$GITHUB_TOKEN"; }; f'
-        git config --global --add safe.directory /__w/transformers/transformers
+        #git config --global --add safe.directory /__w/transformers/transformers
       shell: bash
       env:
         GITHUB_TOKEN: ${{ inputs.github_token }}
@@ -133,7 +133,7 @@ runs:
     
     - name: Add upstream remote
       run: |
-        git config --get remote.origin.url
+        #git config --get remote.origin.url
         git remote add upstream ${{ inputs.upstream_repo }} || true
         git remote set-url upstream ${{ inputs.upstream_repo }}
         git config --get remote.origin.url
