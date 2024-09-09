@@ -32,21 +32,26 @@ inputs:
   docker_options:
     description: "Docker run options (e.g., '--gpus all' for NVIDIA or '--device=/dev/kfd' for AMD)"
     required: true
-  env_flags:
-    description: "Docker env options"
-    required: true
 
 runs:
   using: "composite"
   steps:
-    - name: Prepare Docker run command
-      id: prepare_docker_command
+    - name: Start Docker container
+      id: start_docker_container
       run: |
         EXTERNAL_DIR="/tmp/docker_run_$(date +%s)"
         mkdir -p $EXTERNAL_DIR
-        echo "docker run -v $(pwd):/myworkspace --network host -p 3000:3000 ${{ inputs.docker_options }} --name my_container ${{ inputs.docker_image }} /bin/bash -c" > $EXTERNAL_DIR/run_docker.sh
+        # Start the Docker container
+        CONTAINER_ID=$(docker run -d -v $(pwd):/myworkspace --network host -p 3000:3000 ${{ inputs.docker_options }} --name my_container ${{ inputs.docker_image }} /bin/bash -c "tail -f /dev/null")
+        
+        # Save the run script
+        echo "docker exec -it $CONTAINER_ID /bin/bash -c" > $EXTERNAL_DIR/run_docker.sh
+        
+        # Save the container ID and external directory for future steps
+        echo "CONTAINER_ID=$CONTAINER_ID" >> $GITHUB_ENV
         echo "EXTERNAL_DIR=$EXTERNAL_DIR" >> $GITHUB_ENV
       shell: bash
+
   
     - name: Check out code
       uses: actions/checkout@v4
