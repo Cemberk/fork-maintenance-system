@@ -136,6 +136,8 @@ runs:
       run: |
         sudo chmod -R u+w .git || true
         ls -l .git/
+        sudo chown -R $(whoami) .
+        sudo chmod -R u+w .
       shell: bash
         
     - name: Add upstream remote
