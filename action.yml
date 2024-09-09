@@ -76,6 +76,11 @@ runs:
     
         # Set up safe.directory
         git config --global --add safe.directory $TARGET_DIR
+
+        # Check if the remote 'origin' already exists
+        if git remote | grep origin; then
+          git remote remove origin
+        fi
     
         # Add remote origin
         git remote add origin $REPO_URL
