@@ -391,8 +391,8 @@ runs:
         docker ps -a 
         #bash ${{ env.EXTERNAL_DIR }}/run_docker.sh "cd /myworkspace && ${{ inputs.unit_test_command }} 2>&1 | tee /myworkspace/UNIT_TEST_RESULTS.txt" || true
         #bash ${{ env.EXTERNAL_DIR }}/run_docker.sh -c "ls && cd /myworkspace && pytest -v 2>&1 | tee UNIT_TEST_RESULTS.txt"
-        docker exec -i my_container bash -c "pwd; ls /myworkspace" || { echo "/myworkspace directory not found"; exit 1; }
-        docker exec -i $CONTAINER_ID bash -c "cd /myworkspace && pwd" 
+        docker exec -i my_container bash -c 'pwd; ls /myworkspace' || { echo '/myworkspace directory not found'; exit 1; }
+        docker exec -i $CONTAINER_ID bash -c 'cd /myworkspace && pwd' 
         docker exec -i $CONTAINER_ID bash -c "cd /myworkspace && pwd" || { echo "Command failed"; exit 1; }
         echo "Unit Test Results: $(cat UNIT_TEST_RESULTS.txt)"
         echo "UNIT_TEST_RESULTS=$(cat UNIT_TEST_RESULTS.txt)" >> $GITHUB_ENV
