@@ -776,6 +776,9 @@ runs:
       run: |
         echo "Running unit tests inside Docker..."
         echo "" > ${{ env.EXTERNAL_DIR }}/UNIT_TEST_RESULTS.txt
+        ls 
+        pwd
+        ls /var/lib/github-runner/_work/transformers/transformers/
         bash ${{ env.EXTERNAL_DIR }}/run_docker.sh "cd /myworkspace && ${{ inputs.unit_test_command }} 2>&1 | tee /myworkspace/UNIT_TEST_RESULTS.txt" || true
         echo "Unit Test Results: $(cat ${{ env.EXTERNAL_DIR }}/UNIT_TEST_RESULTS.txt)"
         echo "UNIT_TEST_RESULTS=$(cat ${{ env.EXTERNAL_DIR }}/UNIT_TEST_RESULTS.txt)" >> $GITHUB_ENV
