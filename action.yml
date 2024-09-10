@@ -45,7 +45,7 @@ runs:
         CONTAINER_ID=$(docker run -d -v $(pwd):/myworkspace -p 3000:3000 ${{ inputs.docker_options }} --name my_container ${{ inputs.docker_image }} /bin/bash -c "tail -f /dev/null")
         
         # Save the run script
-        echo "docker exec -i $CONTAINER_ID /bin/bash -c" > $EXTERNAL_DIR/run_docker.sh
+        echo "docker exec $CONTAINER_ID /bin/bash " > $EXTERNAL_DIR/run_docker.sh
         
         # Save the container ID and external directory for future steps
         echo "CONTAINER_ID=$CONTAINER_ID" >> $GITHUB_ENV
