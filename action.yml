@@ -391,7 +391,7 @@ runs:
         pwd
         #bash ${{ env.EXTERNAL_DIR }}/run_docker.sh "cd /myworkspace && ${{ inputs.unit_test_command }} 2>&1 | tee /myworkspace/UNIT_TEST_RESULTS.txt" || true
         #bash ${{ env.EXTERNAL_DIR }}/run_docker.sh -c "ls && cd /myworkspace && pytest -v 2>&1 | tee UNIT_TEST_RESULTS.txt"
-        docker exec -i ${{ env.CONTAINER_ID }} bash -c"ls && cd /myworkspace && pytest -v 2>&1 | tee /myworkspace/UNIT_TEST_RESULTS.txt" || true
+        docker exec -i ${{ env.CONTAINER_ID }} bash -c "ls && cd /myworkspace && pytest -v 2>&1 | tee /myworkspace/UNIT_TEST_RESULTS.txt" || true
         echo "Unit Test Results: $(cat UNIT_TEST_RESULTS.txt)"
         echo "UNIT_TEST_RESULTS=$(cat UNIT_TEST_RESULTS.txt)" >> $GITHUB_ENV
       shell: bash
