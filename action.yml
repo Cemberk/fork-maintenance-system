@@ -444,12 +444,26 @@ runs:
     #    #upstream/$UPSTREAM_MAIN
     #  shell: bash
 
-    - name: Checkout downstream main branch
+    ##- name: Checkout downstream main branch
+    ##  run: |
+    ##    rm -f UNIT_TEST_RESULTS.txt schedule.json
+    ##    git checkout -b tmp-${DOWNSTREAM_DEVELOP}-$(date +%Y%m%d) origin/$DOWNSTREAM_DEVELOP
+    ##    git rebase origin/$DOWNSTREAM_MAIN  || true
+    ##  shell: bash
+
+    - name: Checkout and rebase with branch removal
       run: |
-        rm -f UNIT_TEST_RESULTS.txt schedule.json
-        git checkout -b tmp-${DOWNSTREAM_DEVELOP}-$(date +%Y%m%d) origin/$DOWNSTREAM_DEVELOP
-        git rebase origin/$DOWNSTREAM_MAIN  || true
+        BRANCH_NAME=tmp-${DOWNSTREAM_DEVELOP}-$(date +%Y%m%d)
+        # Check if the branch already exists and delete it
+        if git show-ref --verify --quiet refs/heads/$BRANCH_NAME; then
+          echo "Branch $BRANCH_NAME exists. Deleting it."
+          git branch -D $BRANCH_NAME
+        fi
+        # Create the new branch and rebase
+        git checkout -b $BRANCH_NAME origin/$DOWNSTREAM_DEVELOP
+        git rebase origin/$DOWNSTREAM_MAIN || true
       shell: bash
+
 
     #- name: Checkout downstream main branch
     #  run: git checkout -b tmp-${DOWNSTREAM_DEVELOP}-$(date +%Y%m%d) origin/$DOWNSTREAM_MAIN
