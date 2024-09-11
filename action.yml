@@ -674,7 +674,7 @@ runs:
 
     - name: Run Docker Container for Install
       run: |
-        bash ${{ env.EXTERNAL_DIR }}/run_docker.sh "cd /myworkspace && pip install -e ."
+        docker exec my_container bash -c "cd /myworkspace; pip install -e ."
       shell: bash
 
     #develop tests 
@@ -701,9 +701,10 @@ runs:
       run: |
         echo "Running unit tests inside Docker..."
         echo "" > ${{ env.EXTERNAL_DIR }}/UNIT_TEST_RESULTS.txt
-        bash ${{ env.EXTERNAL_DIR }}/run_docker.sh "cd /myworkspace && ${{ inputs.unit_test_command }} 2>&1 | tee /myworkspace/UNIT_TEST_RESULTS.txt" || true
-        echo "Unit Test Results: $(cat ${{ env.EXTERNAL_DIR }}/UNIT_TEST_RESULTS.txt)"
-        echo "UNIT_TEST_RESULTS=$(cat ${{ env.EXTERNAL_DIR }}/UNIT_TEST_RESULTS.txt)" >> $GITHUB_ENV
+        #bash ${{ env.EXTERNAL_DIR }}/run_docker.sh "cd /myworkspace && ${{ inputs.unit_test_command }} 2>&1 | tee /myworkspace/UNIT_TEST_RESULTS.txt" || true
+        docker exec my_container bash -c "cd /myworkspace; ${{ inputs.unit_test_command }} 2>&1 | tee /myworkspace/UNIT_TEST_RESULTS.txt" 
+        echo "Unit Test Results: $(cat UNIT_TEST_RESULTS.txt)"
+        #echo "UNIT_TEST_RESULTS=$(cat ${{ env.EXTERNAL_DIR }}/UNIT_TEST_RESULTS.txt)" >> $GITHUB_ENV
       shell: bash
 
     - name: Run Docker Container for Performance Tests
@@ -733,7 +734,7 @@ runs:
       run: |
         REPO_OWNER=$(echo $GITHUB_REPOSITORY | cut -d'/' -f1)
         REPO_NAME=$(echo $GITHUB_REPOSITORY | cut -d'/' -f2)
-        UNIT_TEST_COMMENT="### Unit Test Results for ${{ env.BRANCH_NAME }}\n\`\`\`\n${UNIT_TEST_RESULTS}\n\`\`\`"
+        UNIT_TEST_COMMENT="### Unit Test Results for ${{ env.BRANCH_NAME }}\n\`\`\`\n$(cat UNIT_TEST_RESULTS.txt)\n\`\`\`"
         PERFORMANCE_TEST_COMMENT="### Performance Test Results for ${{ env.BRANCH_NAME }}\n\`\`\`\n${PERFORMANCE_TEST_RESULTS}\n\`\`\`"
         gh issue comment ${{ env.issue_number }} --body "$UNIT_TEST_COMMENT\n\n$PERFORMANCE_TEST_COMMENT" --repo "$REPO_OWNER/$REPO_NAME"
       shell: bash
@@ -770,7 +771,8 @@ runs:
 
     - name: Run Docker Container for Install
       run: |
-        bash ${{ env.EXTERNAL_DIR }}/run_docker.sh "cd /myworkspace && pip install -e ."
+        #bash ${{ env.EXTERNAL_DIR }}/run_docker.sh "cd /myworkspace && pip install -e ."
+        docker exec my_container bash -c "cd /myworkspace; pip install -e ."
       shell: bash
 
     ###- name: Run unit tests for release
@@ -795,13 +797,10 @@ runs:
       if: env.rebase_approved == 'false'
       run: |
         echo "Running unit tests inside Docker..."
-        echo "" > ${{ env.EXTERNAL_DIR }}/UNIT_TEST_RESULTS.txt
-        ls 
-        pwd
-        ls /var/lib/github-runner/_work/transformers/transformers/
-        bash ${{ env.EXTERNAL_DIR }}/run_docker.sh "cd /myworkspace && ${{ inputs.unit_test_command }} 2>&1 | tee /myworkspace/UNIT_TEST_RESULTS.txt" || true
-        echo "Unit Test Results: $(cat ${{ env.EXTERNAL_DIR }}/UNIT_TEST_RESULTS.txt)"
-        echo "UNIT_TEST_RESULTS=$(cat ${{ env.EXTERNAL_DIR }}/UNIT_TEST_RESULTS.txt)" >> $GITHUB_ENV
+        #bash ${{ env.EXTERNAL_DIR }}/run_docker.sh "cd /myworkspace && ${{ inputs.unit_test_command }} 2>&1 | tee /myworkspace/UNIT_TEST_RESULTS.txt" || true
+        docker exec my_container bash -c "cd /myworkspace; ${{ inputs.unit_test_command }} 2>&1 | tee /myworkspace/UNIT_TEST_RESULTS.txt" 
+        echo "Unit Test Results: $(cat UNIT_TEST_RESULTS.txt)"
+        #echo "UNIT_TEST_RESULTS=$(cat ${{ env.EXTERNAL_DIR }}/UNIT_TEST_RESULTS.txt)" >> $GITHUB_ENV
       shell: bash
 
     - name: Run Docker Container for Performance Tests
@@ -832,7 +831,7 @@ runs:
       run: |
         REPO_OWNER=$(echo $GITHUB_REPOSITORY | cut -d'/' -f1)
         REPO_NAME=$(echo $GITHUB_REPOSITORY | cut -d'/' -f2)
-        UNIT_TEST_COMMENT="### Unit Test Results for ${{ env.BRANCH_NAME }}\n\`\`\`\n${UNIT_TEST_RESULTS}\n\`\`\`"
+        UNIT_TEST_COMMENT="### Unit Test Results for ${{ env.BRANCH_NAME }}\n\`\`\`\n$(cat UNIT_TEST_RESULTS.txt)\n\`\`\`"
         PERFORMANCE_TEST_COMMENT="### Performance Test Results for ${{ env.BRANCH_NAME }}\n\`\`\`\n${PERFORMANCE_TEST_RESULTS}\n\`\`\`"
         gh issue comment ${{ env.issue_number }} --body "$UNIT_TEST_COMMENT\n\n$PERFORMANCE_TEST_COMMENT" --repo "$REPO_OWNER/$REPO_NAME"
       shell: bash
