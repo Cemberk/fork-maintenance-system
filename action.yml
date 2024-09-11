@@ -361,8 +361,9 @@ runs:
       run: |
         #bash ${{ env.EXTERNAL_DIR }}/run_docker.sh "cd /myworkspace && ${{ inputs.requirements_command }}"
         #bash ${{ env.EXTERNAL_DIR }}/run_docker.sh "cd /myworkspace && pip install -e ."
-        docker exec my_container bash "cd /myworkspace && ${{ inputs.requirements_command }}"
+        #docker exec my_container bash "cd /myworkspace && ${{ inputs.requirements_command }}"
         docker exec my_container bash "cd /myworkspace && pip install -e ."
+        docker exec my_container bash "ls && pwd"
       shell: bash
 
 
