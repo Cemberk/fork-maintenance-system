@@ -402,9 +402,9 @@ runs:
         docker ps -a 
         #bash ${{ env.EXTERNAL_DIR }}/run_docker.sh "cd /myworkspace && ${{ inputs.unit_test_command }} 2>&1 | tee /myworkspace/UNIT_TEST_RESULTS.txt" || true
         #bash ${{ env.EXTERNAL_DIR }}/run_docker.sh -c "ls && cd /myworkspace && pytest -v 2>&1 | tee UNIT_TEST_RESULTS.txt"
-        
+        echo "Before"
         results=$(docker exec my_container bash -c "cd /myworkspace; ${{ inputs.unit_test_command }} 2>&1 | tee /myworkspace/UNIT_TEST_RESULTS.txt" )
-        #
+        echo "After" $results
         #|| true
         #docker exec my_container bash -c 'cd /myworkspace && ls' 
         ls
