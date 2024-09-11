@@ -395,6 +395,7 @@ runs:
         #bash ${{ env.EXTERNAL_DIR }}/run_docker.sh -c "ls && cd /myworkspace && pytest -v 2>&1 | tee UNIT_TEST_RESULTS.txt"
         bash ${{ env.EXTERNAL_DIR }}/run_docker.sh "ls; pwd;"
         docker exec my_container bash 'pwd; ls /myworkspace' 
+        docker exec "cd /myworkspace; ${{ inputs.unit_test_command }}" 2>&1 | tee /myworkspace/UNIT_TEST_RESULTS.txt || true
         docker exec $CONTAINER_ID bash -c 'cd /myworkspace && pwd' 
         docker exec -i $CONTAINER_ID bash -c "cd /myworkspace && pwd" || { echo "Command failed"; exit 1; }
         echo "Unit Test Results: $(cat UNIT_TEST_RESULTS.txt)"
