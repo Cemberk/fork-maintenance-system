@@ -366,7 +366,7 @@ runs:
         EOF
         docker cp run_in_container.sh $CONTAINER_ID:/myworkspace/
         # Execute the script inside Docker
-        docker exec my_container bash "ls /myworkspace"
+        docker exec my_container bash "ls; pwd"
         docker exec my_container bash "cd /myworkspace && chmod +x run_in_container.sh && ./run_in_container.sh"
         
         #docker exec my_container bash "ls && pwd"
