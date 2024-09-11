@@ -312,6 +312,7 @@ runs:
       run: |
         git checkout ${{ env.DOWNSTREAM_MAIN }} # || git checkout -b ${{ env.DOWNSTREAM_MAIN }} upstream/${{ env.UPSTREAM_MAIN }}
         git pull origin ${{ env.DOWNSTREAM_MAIN }}
+        echo "BRANCH_NAME=${DOWNSTREAM_MAIN}" >> $GITHUB_ENV
       shell: bash
 
     - name: Rebase upstream main into downstream main
@@ -442,7 +443,7 @@ runs:
       run: |
         REPO_OWNER=$(echo $GITHUB_REPOSITORY | cut -d'/' -f1)
         REPO_NAME=$(echo $GITHUB_REPOSITORY | cut -d'/' -f2)
-        UNIT_TEST_COMMENT="### Unit Test Results for ${{ env.BRANCH_NAME }}\n\`\`\`\n$(cat UNIT_TEST_RESULTS.txt)\n\`\`\`"
+        UNIT_TEST_COMMENT="### Unit Test Results for sync ${{ env.BRANCH_NAME }}\n\`\`\`\n$(cat UNIT_TEST_RESULTS.txt)\n\`\`\`"
         PERFORMANCE_TEST_COMMENT="### Performance Test Results for ${{ env.BRANCH_NAME }}\n\`\`\`\n${PERFORMANCE_TEST_RESULTS}\n\`\`\`"
         gh issue comment ${{ env.issue_number }} --body "$UNIT_TEST_COMMENT\n\n$PERFORMANCE_TEST_COMMENT" --repo "$REPO_OWNER/$REPO_NAME"
       shell: bash
@@ -482,6 +483,7 @@ runs:
         # Create the new branch and rebase
         git checkout -b $BRANCH_NAME origin/$DOWNSTREAM_DEVELOP
         git rebase origin/$DOWNSTREAM_MAIN || true
+        echo "BRANCH_NAME=${BRANCH_NAME}" >> $GITHUB_ENV
       shell: bash
 
 
@@ -734,7 +736,7 @@ runs:
       run: |
         REPO_OWNER=$(echo $GITHUB_REPOSITORY | cut -d'/' -f1)
         REPO_NAME=$(echo $GITHUB_REPOSITORY | cut -d'/' -f2)
-        UNIT_TEST_COMMENT="### Unit Test Results for ${{ env.BRANCH_NAME }}\n\`\`\`\n$(cat UNIT_TEST_RESULTS.txt)\n\`\`\`"
+        UNIT_TEST_COMMENT="### Unit Test Results for develop ${{ env.BRANCH_NAME }}\n\`\`\`\n$(cat UNIT_TEST_RESULTS.txt)\n\`\`\`"
         PERFORMANCE_TEST_COMMENT="### Performance Test Results for ${{ env.BRANCH_NAME }}\n\`\`\`\n${PERFORMANCE_TEST_RESULTS}\n\`\`\`"
         gh issue comment ${{ env.issue_number }} --body "$UNIT_TEST_COMMENT\n\n$PERFORMANCE_TEST_COMMENT" --repo "$REPO_OWNER/$REPO_NAME"
       shell: bash
@@ -750,6 +752,7 @@ runs:
       run: |
         git checkout upstream/$UPSTREAM_RELEASE
         git checkout -b $DOWNSTREAM_TESTING
+        echo "BRANCH_NAME=${DOWNSTREAM_TESTING}" >> $GITHUB_ENV
       shell: bash
 
     - name: Cherry-pick specific commits from develop to release
@@ -831,7 +834,7 @@ runs:
       run: |
         REPO_OWNER=$(echo $GITHUB_REPOSITORY | cut -d'/' -f1)
         REPO_NAME=$(echo $GITHUB_REPOSITORY | cut -d'/' -f2)
-        UNIT_TEST_COMMENT="### Unit Test Results for ${{ env.BRANCH_NAME }}\n\`\`\`\n$(cat UNIT_TEST_RESULTS.txt)\n\`\`\`"
+        UNIT_TEST_COMMENT="### Unit Test Results for Testing Branch ${{ env.BRANCH_NAME }}\n\`\`\`\n$(cat UNIT_TEST_RESULTS.txt)\n\`\`\`"
         PERFORMANCE_TEST_COMMENT="### Performance Test Results for ${{ env.BRANCH_NAME }}\n\`\`\`\n${PERFORMANCE_TEST_RESULTS}\n\`\`\`"
         gh issue comment ${{ env.issue_number }} --body "$UNIT_TEST_COMMENT\n\n$PERFORMANCE_TEST_COMMENT" --repo "$REPO_OWNER/$REPO_NAME"
       shell: bash
