@@ -723,9 +723,11 @@ runs:
       run: |
         REPO_OWNER=$(echo $GITHUB_REPOSITORY | cut -d'/' -f1)
         REPO_NAME=$(echo $GITHUB_REPOSITORY | cut -d'/' -f2)
-        UNIT_TEST_COMMENT="### Unit Test Results for Testing Branch ${{ env.BRANCH_NAME }}\n\`\`\`\n$(cat UNIT_TEST_RESULTS.txt)\n\`\`\`"
-        PERFORMANCE_TEST_COMMENT="### Performance Test Results for ${{ env.BRANCH_NAME }}\n\`\`\`\n${PERFORMANCE_TEST_RESULTS}\n\`\`\`"
-        gh issue comment ${{ env.issue_number }} --body "$UNIT_TEST_COMMENT\n\n$PERFORMANCE_TEST_COMMENT" --repo "$REPO_OWNER/$REPO_NAME"
+        UNIT_TEST_COMMENT="### Unit Test Results for Testing Branch ${{ env.BRANCH_NAME }} \n \`\`\` \n $(cat UNIT_TEST_RESULTS.txt) \n \`\`\`"
+        PERFORMANCE_TEST_COMMENT="### Performance Test Results for ${{ env.BRANCH_NAME }} \n \`\`\` \n $(cat PERF_TEST_RESULTS.txt) \n \`\`\`"
+        gh issue comment ${{ env.issue_number }} --body "$UNIT_TEST_COMMENT \n\n $PERFORMANCE_TEST_COMMENT" --repo "$REPO_OWNER/$REPO_NAME"
+        rm -rf UNIT_TEST_RESULTS.txt
+        rm -rf PERF_TEST_RESULTS.txt
       shell: bash
       env:
         GITHUB_TOKEN: ${{ inputs.github_token }}
