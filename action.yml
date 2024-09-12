@@ -164,41 +164,6 @@ runs:
         #git switch -c ${{ inputs.pr_branch_prefix }}-sync-test-$(date +%Y%m%d) upstream/$UPSTREAM_MAIN
       shell: bash
 
-    ##- name: Install GitHub CLI
-    ##  run: |
-    ##    (type -p wget >/dev/null || (sudo apt update && sudo apt-get install wget -y)) \
-    ##    && sudo mkdir -p -m 755 /etc/apt/keyrings \
-    ##    && wget -qO- https://cli.github.com/packages/githubcli-archive-keyring.gpg | sudo tee /etc/apt/keyrings/githubcli-archive-keyring.gpg > /dev/null \
-    ##    && sudo chmod go+r /etc/apt/keyrings/githubcli-archive-keyring.gpg \
-    ##    && echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null \
-    ##    && sudo apt update \
-    ##    && sudo apt install gh -y
-    ##  shell: bash
-
-    #- name: Install dependencies based on OS
-    #  run: |
-    #    # Detect the OS distribution
-    #    if [ -f /etc/os-release ]; then
-    #      . /etc/os-release
-    #      OS=$ID
-    #    else
-    #      OS=$(uname -s)
-    #    fi
-
-    #    # Install packages based on OS
-    #    if [ "$OS" == "ubuntu" ] || [ "$OS" == "debian" ]; then
-    #      echo "Detected Ubuntu/Debian. Installing using apt..."
-    #      sudo apt-get update
-    #      sudo apt-get install -y wget apt-transport-https software-properties-common dpkg
-    #    elif [ "$OS" == "centos" ] || [ "$OS" == "rhel" ] || [ "$OS" == "fedora" ]; then
-    #      echo "Detected CentOS/RHEL/Fedora. Installing using yum..."
-    #      sudo yum install -y wget yum-utils
-    #    else
-    #      echo "Unsupported OS: $OS"
-    #      exit 1
-    #    fi
-    #  shell: bash
-
     - name: Install GitHub CLI based on OS
       run: |
         # Detect the OS distribution
@@ -292,21 +257,6 @@ runs:
       env:
         GITHUB_TOKEN: ${{ inputs.github_token }}
 
-    
-    #- name: Check for Comment Approval
-    #  id: check_comment
-    #  run: |
-    #    REPO_OWNER=$(echo $GITHUB_REPOSITORY | cut -d'/' -f1)
-    #    REPO_NAME=$(echo $GITHUB_REPOSITORY | cut -d'/' -f2)
-    #    comments=$(gh issue view ${{ env.issue_number }} --repo "$REPO_OWNER/$REPO_NAME" --json comments --jq '.comments[].body')
-    #    if echo "$comments" | grep -q 'proceed with rebase'; then
-    #      echo "rebase_approved=true" >> $GITHUB_ENV
-    #    else
-    #      echo "rebase_approved=false" >> $GITHUB_ENV
-    #    fi
-    #  shell: bash
-    #  env:
-    #    GITHUB_TOKEN: ${{ inputs.github_token }}
 
     - name: Checkout and update downstream main
       run: |
@@ -331,33 +281,6 @@ runs:
       env:
         GITHUB_TOKEN: ${{ inputs.github_token }}
 
-    #- name: Create Pull Request for upstream sync
-    #  run: |
-    #    gh pr create --title "Automated PR: Upstream Sync into ${{ env.DOWNSTREAM_MAIN }}" --body "This PR was created automatically by the Fork Maintenance System to sync changes from the upstream main into the downstream main." --base origin/${{ env.DOWNSTREAM_MAIN }} --head upstream/${{ env.UPSTREAM_MAIN }}
-    #    #${{ inputs.pr_branch_prefix }}-sync-test-$(date +%Y%m%d) 
-    #    #upstream/${{ env.UPSTREAM_MAIN }}
-    #  env:
-    #    GITHUB_TOKEN: ${{ inputs.github_token }}
-    #  shell: bash
-
-    #- name: upstream changes
-    #  run: |
-    #    git switch -c ${{ inputs.pr_branch_prefix }}-sync-test-$(date +%Y%m%d) upstream/$UPSTREAM_MAIN
-    #  shell: bash
-
-    ##- name: Set up Python
-    ##  uses: actions/setup-python@v2
-    ##  with:
-    ##    python-version: '3.x'
-
-    #- name: Install dependencies
-    #  run: |
-    #    #pip install -r requirements.txt
-    #    ${{ inputs.requirements_command }}
-    #    pip install pytest
-    #    pip install -e .
-    #  shell: bash
-
     - name: Run Docker Container for Requirements
       run: |
         # Create the script with all necessary commands
@@ -372,26 +295,6 @@ runs:
         rm -rf run_in_container.sh
         #docker exec my_container bash "ls && pwd"
       shell: bash
-
-
-    ###- name: Run unit tests for upstream sync
-    ###  if: env.rebase_approved == 'false'
-    ###  run: |
-    ###    echo "Running unit tests for upstream sync..."
-    ###    echo "" > UNIT_TEST_RESULTS.txt
-    ###    ${{ inputs.unit_test_command }} 2>&1 | tee UNIT_TEST_RESULTS.txt  || true
-    ###    echo "Unit Test Results: $(cat UNIT_TEST_RESULTS.txt)"
-    ###    echo "UNIT_TEST_RESULTS=$(cat UNIT_TEST_RESULTS.txt)" >> $GITHUB_ENV
-    ###  shell: bash
-
-    ###- name: Run performance tests for upstream sync
-    ###  if: env.rebase_approved == 'false'
-    ###  run: |
-    ###    echo "Running performance tests for upstream sync..."
-    ###    PERFORMANCE_TEST_RESULTS=$(eval "${{ inputs.performance_test_command }} 2>&1") || true
-    ###    echo "Performance Test Results: $PERFORMANCE_TEST_RESULTS"
-    ###    echo "PERFORMANCE_TEST_RESULTS=$PERFORMANCE_TEST_RESULTS" >> $GITHUB_ENV
-    ###  shell: bash
 
     
     - name: Run Docker Container for Unit Tests
@@ -417,9 +320,10 @@ runs:
       if: env.rebase_approved == 'false'
       run: |
         echo "Running performance tests inside Docker..."
-        PERFORMANCE_TEST_RESULTS=$(bash ${{ env.EXTERNAL_DIR }}/run_docker.sh "cd /myworkspace && ${{ inputs.performance_test_command }} 2>&1") || true
-        echo "Performance Test Results: $PERFORMANCE_TEST_RESULTS"
-        echo "PERFORMANCE_TEST_RESULTS=$PERFORMANCE_TEST_RESULTS" >> $GITHUB_ENV
+        #ERFORMANCE_TEST_RESULTS=$(bash ${{ env.EXTERNAL_DIR }}/run_docker.sh "cd /myworkspace && ${{ inputs.performance_test_command }} 2>&1") || true
+        docker exec my_container bash -c "cd /myworkspace; ${{ inputs.performance_test_command }} 2>&1 | tee /myworkspace/PERF_TEST_RESULTS.txt" 
+        echo "Performance Test Results: $(cat PERF_TEST_RESULTS.txt)"
+        #echo "PERFORMANCE_TEST_RESULTS=$PERFORMANCE_TEST_RESULTS" >> $GITHUB_ENV
       shell: bash
 
     ##- name: Create Issue with test results for upstream sync
@@ -443,9 +347,11 @@ runs:
       run: |
         REPO_OWNER=$(echo $GITHUB_REPOSITORY | cut -d'/' -f1)
         REPO_NAME=$(echo $GITHUB_REPOSITORY | cut -d'/' -f2)
-        UNIT_TEST_COMMENT="### Unit Test Results for sync ${{ env.BRANCH_NAME }}\n\`\`\`\n$(cat UNIT_TEST_RESULTS.txt)\n\`\`\`"
-        PERFORMANCE_TEST_COMMENT="### Performance Test Results for ${{ env.BRANCH_NAME }}\n\`\`\`\n${PERFORMANCE_TEST_RESULTS}\n\`\`\`"
-        gh issue comment ${{ env.issue_number }} --body "$UNIT_TEST_COMMENT\n\n$PERFORMANCE_TEST_COMMENT" --repo "$REPO_OWNER/$REPO_NAME"
+        UNIT_TEST_COMMENT="### Unit Test Results for sync ${{ env.BRANCH_NAME }} \n \`\`\`\n$(cat UNIT_TEST_RESULTS.txt) \n \`\`\`"
+        PERFORMANCE_TEST_COMMENT="### Performance Test Results for ${{ env.BRANCH_NAME }} \n \`\`\` \n $(cat PERF_TEST_RESULTS.txt) \n \`\`\`"
+        gh issue comment ${{ env.issue_number }} --body "$UNIT_TEST_COMMENT \n\n $PERFORMANCE_TEST_COMMENT" --repo "$REPO_OWNER/$REPO_NAME"
+        rm -rf UNIT_TEST_RESULTS.txt
+        rm -rf PERF_TEST_RESULTS.txt
       shell: bash
       env:
         GITHUB_TOKEN: ${{ inputs.github_token }}
@@ -647,8 +553,6 @@ runs:
     #  shell: bash
 
     
-
-    
     
     #- name: Run reviewdog to suggest conflict resolutions
     #  if: env.conflicts == 'true'
@@ -680,29 +584,11 @@ runs:
       shell: bash
 
     #develop tests 
-    ###- name: Run unit tests for develop
-    ###  if: env.rebase_approved == 'false'
-    ###  run: |
-    ###    echo "Running unit tests for develop..."
-    ###    UNIT_TEST_RESULTS=$(eval "${{ inputs.unit_test_command }} 2>&1")
-    ###    echo "Unit Test Results: $UNIT_TEST_RESULTS"
-    ###    echo "UNIT_TEST_RESULTS=$UNIT_TEST_RESULTS" >> $GITHUB_ENV
-    ###  shell: bash
-
-    ###- name: Run performance tests for develop
-    ###  if: env.rebase_approved == 'false'
-    ###  run: |
-    ###    echo "Running performance tests for develop..."
-    ###    PERFORMANCE_TEST_RESULTS=$(eval "${{ inputs.performance_test_command }} 2>&1")
-    ###    echo "Performance Test Results: $PERFORMANCE_TEST_RESULTS"
-    ###    echo "PERFORMANCE_TEST_RESULTS=$PERFORMANCE_TEST_RESULTS" >> $GITHUB_ENV
-    ###  shell: bash
-
     - name: Run Docker Container for Unit Tests
       if: env.rebase_approved == 'false'
       run: |
         echo "Running unit tests inside Docker..."
-        echo "" > ${{ env.EXTERNAL_DIR }}/UNIT_TEST_RESULTS.txt
+        #echo "" > ${{ env.EXTERNAL_DIR }}/UNIT_TEST_RESULTS.txt
         #bash ${{ env.EXTERNAL_DIR }}/run_docker.sh "cd /myworkspace && ${{ inputs.unit_test_command }} 2>&1 | tee /myworkspace/UNIT_TEST_RESULTS.txt" || true
         docker exec my_container bash -c "cd /myworkspace; ${{ inputs.unit_test_command }} 2>&1 | tee /myworkspace/UNIT_TEST_RESULTS.txt" 
         echo "Unit Test Results: $(cat UNIT_TEST_RESULTS.txt)"
@@ -713,9 +599,10 @@ runs:
       if: env.rebase_approved == 'false'
       run: |
         echo "Running performance tests inside Docker..."
-        PERFORMANCE_TEST_RESULTS=$(bash ${{ env.EXTERNAL_DIR }}/run_docker.sh "cd /myworkspace && ${{ inputs.performance_test_command }} 2>&1") || true
-        echo "Performance Test Results: $PERFORMANCE_TEST_RESULTS"
-        echo "PERFORMANCE_TEST_RESULTS=$PERFORMANCE_TEST_RESULTS" >> $GITHUB_ENV
+        #PERFORMANCE_TEST_RESULTS=$(bash ${{ env.EXTERNAL_DIR }}/run_docker.sh "cd /myworkspace && ${{ inputs.performance_test_command }} 2>&1") || true.
+        docker exec my_container bash -c "cd /myworkspace; ${{ inputs.performance_test_command }} 2>&1 | tee /myworkspace/PERF_TEST_RESULTS.txt" 
+        echo "Performance Test Results: $(cat PERF_TEST_RESULTS.txt)"
+        #echo "PERFORMANCE_TEST_RESULTS=$PERFORMANCE_TEST_RESULTS" >> $GITHUB_ENV
       shell: bash
 
     ##- name: Comment test results on develop PR
@@ -736,9 +623,11 @@ runs:
       run: |
         REPO_OWNER=$(echo $GITHUB_REPOSITORY | cut -d'/' -f1)
         REPO_NAME=$(echo $GITHUB_REPOSITORY | cut -d'/' -f2)
-        UNIT_TEST_COMMENT="### Unit Test Results for develop ${{ env.BRANCH_NAME }}\n\`\`\`\n$(cat UNIT_TEST_RESULTS.txt)\n\`\`\`"
-        PERFORMANCE_TEST_COMMENT="### Performance Test Results for ${{ env.BRANCH_NAME }}\n\`\`\`\n${PERFORMANCE_TEST_RESULTS}\n\`\`\`"
-        gh issue comment ${{ env.issue_number }} --body "$UNIT_TEST_COMMENT\n\n$PERFORMANCE_TEST_COMMENT" --repo "$REPO_OWNER/$REPO_NAME"
+        UNIT_TEST_COMMENT="### Unit Test Results for develop ${{ env.BRANCH_NAME }} \n \`\`\` \n $(cat UNIT_TEST_RESULTS.txt) \n \`\`\`"
+        PERFORMANCE_TEST_COMMENT="### Performance Test Results for ${{ env.BRANCH_NAME }} \n \`\`\` \n $(cat PERF_TEST_RESULTS.txt) \n \`\`\`"
+        gh issue comment ${{ env.issue_number }} --body "$UNIT_TEST_COMMENT \n\n $PERFORMANCE_TEST_COMMENT" --repo "$REPO_OWNER/$REPO_NAME"
+        rm -rf UNIT_TEST_RESULTS.txt
+        rm -rf PERF_TEST_RESULTS.txt
       shell: bash
       env:
         GITHUB_TOKEN: ${{ inputs.github_token }}
