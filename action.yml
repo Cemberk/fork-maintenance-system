@@ -746,7 +746,7 @@ runs:
           cd $TARGET_DIR
           sudo chmod -R u+w $TARGET_DIR
           git reset --hard
-          git clean -fdx
+          sudo git clean -fdx
         fi
       shell: bash
 
