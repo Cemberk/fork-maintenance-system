@@ -108,7 +108,7 @@ runs:
         echo "https://x-access-token:$GITHUB_TOKEN@github.com" > $HOME/.git-credentials
         ##git config --global credential.helper '!f() { sleep 1; echo "username=git token=$GITHUB_TOKEN"; }; f'
         #git config --global --add safe.directory /__w/transformers/transformers
-        git config --global --add safe.directory /var/lib/github-runner/_work/transformers/transformers
+        #git config --global --add safe.directory /var/lib/github-runner/_work/transformers/transformers
       shell: bash
       env:
         GITHUB_TOKEN: ${{ inputs.github_token }}
