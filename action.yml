@@ -699,9 +699,10 @@ runs:
       if: env.rebase_approved == 'false'
       run: |
         echo "Running performance tests inside Docker..."
-        PERFORMANCE_TEST_RESULTS=$(bash ${{ env.EXTERNAL_DIR }}/run_docker.sh "cd /myworkspace && ${{ inputs.performance_test_command }} 2>&1") || true
-        echo "Performance Test Results: $PERFORMANCE_TEST_RESULTS"
-        echo "PERFORMANCE_TEST_RESULTS=$PERFORMANCE_TEST_RESULTS" >> $GITHUB_ENV
+        #PERFORMANCE_TEST_RESULTS=$(bash ${{ env.EXTERNAL_DIR }}/run_docker.sh "cd /myworkspace && ${{ inputs.performance_test_command }} 2>&1") || true
+        docker exec my_container bash -c "cd /myworkspace; ${{ inputs.performance_test_command }} 2>&1 | tee /myworkspace/PERF_TEST_RESULTS.txt" 
+        echo "Performance Test Results: $(cat PERF_TEST_RESULTS.txt)"
+        #echo "PERFORMANCE_TEST_RESULTS=$PERFORMANCE_TEST_RESULTS" >> $GITHUB_ENV
       shell: bash
 
     ##- name: Create Issue with test results for release
