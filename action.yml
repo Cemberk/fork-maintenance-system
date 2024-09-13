@@ -47,10 +47,10 @@ runs:
       run: |
         # Set repository URL and target directory
         REPO_URL="https://github.com/${{ github.repository }}"
-        TARGET_DIR="${{ github.workspace }}/repository"
+        TARGET_DIR="${{ github.workspace }}"
     
         # Create target directory if it doesn't exist
-        mkdir -p $TARGET_DIR
+        #mkdir -p $TARGET_DIR
     
         # Navigate to the working directory
         cd $TARGET_DIR
@@ -740,7 +740,7 @@ runs:
         docker stop my_container
         docker rm my_container
         rm -rf ${{ env.EXTERNAL_DIR }}
-        TARGET_DIR="${{ github.workspace }}/repository"
+        TARGET_DIR="${{ github.workspace }}"
         if [ -d $TARGET_DIR ]; then
           # Clean the working directory and reset the repository to its original state
           cd $TARGET_DIR
