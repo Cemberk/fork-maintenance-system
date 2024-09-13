@@ -747,6 +747,7 @@ runs:
           sudo chmod -R u+w $TARGET_DIR
           git reset --hard
           sudo git clean -fdx
+          git branch -D ${DOWNSTREAM_TESTING} || true
         fi
       shell: bash
 
