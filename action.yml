@@ -36,24 +36,6 @@ inputs:
 runs:
   using: "composite"
   steps:
-    - name: Start Docker container
-      id: start_docker_container
-      run: |
-        EXTERNAL_DIR="/tmp/docker_run_$(date +%s)"
-        mkdir -p $EXTERNAL_DIR
-        # Start the Docker container
-        CONTAINER_ID=$(docker run -d -v $(pwd):/myworkspace ${{ inputs.docker_options }} --name my_container ${{ inputs.docker_image }} /bin/bash -c  "tail -f /dev/null") #/bin/bash -c  "tail -f /dev/null") # 
-        #docker start my_container
-        docker ps -a
-        docker exec -i my_container /bin/bash -c "ls; pwd"
-        # Save the run script
-        echo "docker exec -i $CONTAINER_ID /bin/bash -c " > $EXTERNAL_DIR/run_docker.sh
-        
-        # Save the container ID and external directory for future steps
-        echo "CONTAINER_ID=$CONTAINER_ID" >> $GITHUB_ENV
-        echo "EXTERNAL_DIR=$EXTERNAL_DIR" >> $GITHUB_ENV
-      shell: bash
-
   
     #- name: Check out code
     #  uses: actions/checkout@v4
@@ -100,7 +82,23 @@ runs:
         git submodule update --init --recursive
       shell: bash
 
-    
+    - name: Start Docker container
+      id: start_docker_container
+      run: |
+        EXTERNAL_DIR="/tmp/docker_run_$(date +%s)"
+        mkdir -p $EXTERNAL_DIR
+        # Start the Docker container
+        CONTAINER_ID=$(docker run -d -v $(pwd):/myworkspace ${{ inputs.docker_options }} --name my_container ${{ inputs.docker_image }} /bin/bash -c  "tail -f /dev/null") #/bin/bash -c  "tail -f /dev/null") # 
+        #docker start my_container
+        docker ps -a
+        docker exec -i my_container /bin/bash -c "ls; pwd"
+        # Save the run script
+        echo "docker exec -i $CONTAINER_ID /bin/bash -c " > $EXTERNAL_DIR/run_docker.sh
+        
+        # Save the container ID and external directory for future steps
+        echo "CONTAINER_ID=$CONTAINER_ID" >> $GITHUB_ENV
+        echo "EXTERNAL_DIR=$EXTERNAL_DIR" >> $GITHUB_ENV
+      shell: bash
       
     - name: Set up Git
       run: |
@@ -742,6 +740,13 @@ runs:
         docker stop my_container
         docker rm my_container
         rm -rf ${{ env.EXTERNAL_DIR }}
+        TARGET_DIR="${{ github.workspace }}/repository"
+        if [ -d $TARGET_DIR ]; then
+          # Clean the working directory and reset the repository to its original state
+          cd $TARGET_DIR
+          git reset --hard
+          git clean -fdx
+        fi
       shell: bash
 
 # Example schedule.json
