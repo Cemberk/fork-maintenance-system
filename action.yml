@@ -267,6 +267,7 @@ runs:
 
     - name: Rebase upstream main into downstream main
       run: |
+        git status
         git rebase upstream/${{ env.UPSTREAM_MAIN }} || true
         #git checkout -b ${{ inputs.pr_branch_prefix }}-sync-test-$(date +%Y%m%d)
         #git push origin ${{ inputs.pr_branch_prefix }}-sync-test-$(date +%Y%m%d)
