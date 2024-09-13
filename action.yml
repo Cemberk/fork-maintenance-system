@@ -744,6 +744,7 @@ runs:
         if [ -d $TARGET_DIR ]; then
           # Clean the working directory and reset the repository to its original state
           cd $TARGET_DIR
+          sudo chmod -R u+w $TARGET_DIR
           git reset --hard
           git clean -fdx
         fi
