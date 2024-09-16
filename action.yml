@@ -663,7 +663,8 @@ runs:
         REPO_OWNER=$(echo $GITHUB_REPOSITORY | cut -d'/' -f1)
         REPO_NAME=$(echo $GITHUB_REPOSITORY | cut -d'/' -f2)
         DIFF_ARTIFACT_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts/git-diff-file-test-2"
-        DIFF_INFO="Git diff artifact URL for tmp-${DOWNSTREAM_DEVELOP}-$(date +%Y%m%d) vs ${DOWNSTREAM_DEVELOP}: $ARTIFACT_URL"
+        COMPARE_URL="https://github.com/ROCm/transformers/compare/$DOWNSTREAM_TESTING...ROCm:transformers:tmp-${DOWNSTREAM_DEVELOP}-$(date +%Y%m%d)" 
+        DIFF_INFO="Git diff artifact URL for tmp-${DOWNSTREAM_DEVELOP}-$(date +%Y%m%d) vs ${DOWNSTREAM_DEVELOP}: $ARTIFACT_URL  <br /> Compare URL on Github: $COMPARE_URL"
         UT_ARTIFACT_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts/git-ut-file-test-2"
         UNIT_TEST_INFO="### Unit Test Results for Testing Branch ${{ env.BRANCH_NAME }} <br /> \`\`\` <br /> $UT_ARTIFACT_URL <br /> \`\`\`"
         UNIT_TEST_COMMENT="### Unit Test Results for develop ${{ env.BRANCH_NAME }} <br /> \`\`\` <br /> $(cat 2_UNIT_TEST_RESULTS.txt) <br /> \`\`\`"
@@ -789,7 +790,8 @@ runs:
         REPO_OWNER=$(echo $GITHUB_REPOSITORY | cut -d'/' -f1)
         REPO_NAME=$(echo $GITHUB_REPOSITORY | cut -d'/' -f2)
         DIFF_ARTIFACT_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts/git-diff-file-test-3"
-        DIFF_INFO="Git diff artifact URL for Upstream Testing vs Downstream Testing: $ARTIFACT_URL"
+        COMPARE_URL="https://github.com/ROCm/transformers/compare/$DOWNSTREAM_TESTING...huggingface:transformers:$UPSTREAM_RELEASE"
+        DIFF_INFO="Git diff artifact URL for Upstream Testing vs Downstream Testing: $DIFF_ARTIFACT_URL <br /> Compare URL on Github: $COMPARE_URL"
         UT_ARTIFACT_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts/git-ut-file-test-3"
         UNIT_TEST_INFO="### Unit Test Results for Testing Branch ${{ env.BRANCH_NAME }} <br /> \`\`\` <br /> $UT_ARTIFACT_URL <br /> \`\`\`"
         UNIT_TEST_COMMENT="### Unit Test Results for Testing Branch ${{ env.BRANCH_NAME }} <br /> \`\`\` <br /> $(cat 3_UNIT_TEST_RESULTS.txt) <br /> \`\`\`"
