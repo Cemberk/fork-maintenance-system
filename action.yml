@@ -750,6 +750,7 @@ runs:
           sudo git clean -fdx
           #git worktree prune
           git branch -D ${DOWNSTREAM_TESTING} || true
+          sudo rm -fr ".git/rebase-merge"
         fi
       shell: bash
 
