@@ -132,6 +132,7 @@ runs:
         echo "DOWNSTREAM_DEVELOP=$DOWNSTREAM_DEVELOP" >> $GITHUB_ENV
         echo "DOWNSTREAM_TESTING=$DOWNSTREAM_TESTING" >> $GITHUB_ENV
         echo "COMMITS=$COMMITS" >> $GITHUB_ENV
+        rm -rf schedule.json
       shell: bash
 
     - name: Ensure permissions for .git directory
