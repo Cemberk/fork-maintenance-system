@@ -764,7 +764,7 @@ runs:
         if [ -d $TARGET_DIR ]; then
           # Clean the working directory and reset the repository to its original state
           cd $TARGET_DIR
-          chmod -R u+w $TARGET_DIR
+          #chmod -R u+w $TARGET_DIR
           git rebase --abort || true
           git merge --abort || true
           git reset --hard
