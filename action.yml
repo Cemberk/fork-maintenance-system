@@ -434,13 +434,14 @@ runs:
     ##    #git commit -m "Mark conflict markers for review"
     ##  shell: bash
 
-    - name: Handle Rebase Conflicts 
+    - name: Handle Rebase Conflicts
       if: env.conflicts == 'true'
       run: |
         echo "Aborting rebase due to conflicts."
         git rebase --abort
-        # Merge downstream main into the branch to capture conflicts
         git merge origin/${DOWNSTREAM_MAIN} || true
+        git add -A
+        git commit -m "Merge downstream main into ${BRANCH_NAME} with conflicts"
       shell: bash
 
     #push the rebased branch to develop 
