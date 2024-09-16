@@ -52,7 +52,8 @@ runs:
         # Create target directory if it doesn't exist
         #mkdir -p $TARGET_DIR
         # Clean the target directory
-        sudo rm -rf "$TARGET_DIR"/*
+        #sudo rm -rf "$TARGET_DIR"/*
+        find . -name . -o -prune -exec sudo rm -rf -- {} +
     
         # Navigate to the working directory
         cd $TARGET_DIR
