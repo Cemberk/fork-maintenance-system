@@ -52,7 +52,7 @@ runs:
         # Create target directory if it doesn't exist
         #mkdir -p $TARGET_DIR
         # Clean the target directory
-        rm -rf "$TARGET_DIR"/*
+        sudo rm -rf "$TARGET_DIR"/*
     
         # Navigate to the working directory
         cd $TARGET_DIR
