@@ -384,14 +384,12 @@ runs:
     - name: Checkout and rebase with branch removal
       run: |
         BRANCH_NAME=tmp-${DOWNSTREAM_DEVELOP}-$(date +%Y%m%d)
-        # Check if the branch already exists and delete it
-        if git show-ref --verify --quiet refs/heads/$BRANCH_NAME; then
-          echo "Branch $BRANCH_NAME exists. Deleting it."
-          git branch -D $BRANCH_NAME
-        fi
-        # Create the new branch and rebase
-        git checkout -b $BRANCH_NAME origin/$DOWNSTREAM_DEVELOP
-        git rebase origin/$DOWNSTREAM_MAIN || true
+        # Delete existing branch if it exists
+        git branch -D $BRANCH_NAME || true
+        # Create new branch from downstream develop
+        git checkout -b $BRANCH_NAME origin/${DOWNSTREAM_DEVELOP}
+        # Attempt to rebase onto downstream main
+        git rebase origin/${DOWNSTREAM_MAIN} || true
         echo "BRANCH_NAME=${BRANCH_NAME}" >> $GITHUB_ENV
       shell: bash
 
@@ -409,8 +407,15 @@ runs:
     - name: Check for rebase conflicts
       id: check_conflicts
       run: |
-        git ls-files -u
-        if git ls-files -u | grep -q '^'; then
+        #git ls-files -u
+        #if git ls-files -u | grep -q '^'; then
+        #  echo "Rebase conflicts detected."
+        #  echo "conflicts=true" >> $GITHUB_ENV
+        #else
+        #  echo "No rebase conflicts."
+        #  echo "conflicts=false" >> $GITHUB_ENV
+        #fi
+        if git status | grep -q "Unmerged paths"; then
           echo "Rebase conflicts detected."
           echo "conflicts=true" >> $GITHUB_ENV
         else
@@ -419,14 +424,23 @@ runs:
         fi
       shell: bash
 
-    - name: Commit conflict markers
+    ##- name: Commit conflict markers
+    ##  if: env.conflicts == 'true'
+    ##  run: |
+    ##    git status
+    ##    git add . 
+    ##    #-u
+    ##    GIT_EDITOR=true git rebase --continue || true
+    ##    #git commit -m "Mark conflict markers for review"
+    ##  shell: bash
+
+    - name: Handle Rebase Conflicts 
       if: env.conflicts == 'true'
       run: |
-        git status
-        git add . 
-        #-u
-        GIT_EDITOR=true git rebase --continue || true
-        #git commit -m "Mark conflict markers for review"
+        echo "Aborting rebase due to conflicts."
+        git rebase --abort
+        # Merge downstream main into the branch to capture conflicts
+        git merge origin/${DOWNSTREAM_MAIN} || true
       shell: bash
 
     #push the rebased branch to develop 
@@ -750,12 +764,14 @@ runs:
           # Clean the working directory and reset the repository to its original state
           cd $TARGET_DIR
           chmod -R u+w $TARGET_DIR
+          git rebase --abort || true
+          git merge --abort || true
           git reset --hard
           sudo git clean -fdx
           #git worktree prune
           git branch -D ${DOWNSTREAM_TESTING} || true
           git branch -D tmp-${{ env.DOWNSTREAM_DEVELOP }}-* || true
-          rm -fr .git/rebase-merge
+          rm -fr .git/rebase-merge .git/MERGE_HEAD
         fi
       shell: bash
 
