@@ -553,35 +553,35 @@ runs:
       env:
         GITHUB_TOKEN: ${{ inputs.github_token }}
 
-    - name: Create suggestions for conflicts
-      if: env.conflicts == 'true'
-      run: |
-        git diff --name-only --diff-filter=U | while read file; do
-          # Split the file into ancestor, our-version, and their-version
-          git show :1:"$file" > ancestor.txt || echo "" > ancestor.txt
-          git show :2:"$file" > our-version.txt || echo "" > our-version.txt
-          git show :3:"$file" > their-version.txt || echo "" > their-version.txt
-          
-          # Create conflict suggestions for each conflict in the file
-          conflict_markers=$(grep -n '<<<<<<<' $file | cut -d: -f1)
-          for marker in $conflict_markers; do
-            LINE_NUMBER=$((marker+1))
-            echo $marker
-            diff3 -m our-version.txt ancestor.txt their-version.txt > conflict_$LINE_NUMBER.txt
-            
-            # Post suggestion for this conflict
-            COMMENT_BODY="### Conflict detected in \`$file\` at line $LINE_NUMBER\n\`\`\`diff\n$(cat conflict_$LINE_NUMBER.txt)\n\`\`\`\nPlease resolve the conflict by keeping the necessary changes."
-            
-            curl -L \
-              -X POST \
-              -H "Accept: application/vnd.github+json" \
-              -H "Authorization: Bearer ${{ inputs.github_token }}" \
-              -H "X-GitHub-Api-Version: 2022-11-28" \
-              https://api.github.com/repos/${{ github.repository_owner }}/$(basename ${{ github.repository }})/pulls/${{ env.PR_NUMBER }}/comments \
-              -d "{\"body\":\"${COMMENT_BODY}\",\"commit_id\":\"${{ github.event.pull_request.head.sha }}\",\"path\":\"$file\",\"line\":$LINE_NUMBER,\"side\":\"RIGHT\"}"
-          done
-        done
-      shell: bash
+    ###- name: Create suggestions for conflicts
+    ###  if: env.conflicts == 'true'
+    ###  run: |
+    ###    git diff --name-only --diff-filter=U | while read file; do
+    ###      # Split the file into ancestor, our-version, and their-version
+    ###      git show :1:"$file" > ancestor.txt || echo "" > ancestor.txt
+    ###      git show :2:"$file" > our-version.txt || echo "" > our-version.txt
+    ###      git show :3:"$file" > their-version.txt || echo "" > their-version.txt
+    ###      
+    ###      # Create conflict suggestions for each conflict in the file
+    ###      conflict_markers=$(grep -n '<<<<<<<' $file | cut -d: -f1)
+    ###      for marker in $conflict_markers; do
+    ###        LINE_NUMBER=$((marker+1))
+    ###        echo $marker
+    ###        diff3 -m our-version.txt ancestor.txt their-version.txt > conflict_$LINE_NUMBER.txt
+    ###        
+    ###        # Post suggestion for this conflict
+    ###        COMMENT_BODY="### Conflict detected in \`$file\` at line $LINE_NUMBER\n\`\`\`diff\n$(cat conflict_$LINE_NUMBER.txt)\n\`\`\`\nPlease resolve the conflict by keeping the necessary changes."
+    ###        
+    ###        curl -L \
+    ###          -X POST \
+    ###          -H "Accept: application/vnd.github+json" \
+    ###          -H "Authorization: Bearer ${{ inputs.github_token }}" \
+    ###          -H "X-GitHub-Api-Version: 2022-11-28" \
+    ###          https://api.github.com/repos/${{ github.repository_owner }}/$(basename ${{ github.repository }})/pulls/${{ env.PR_NUMBER }}/comments \
+    ###          -d "{\"body\":\"${COMMENT_BODY}\",\"commit_id\":\"${{ github.event.pull_request.head.sha }}\",\"path\":\"$file\",\"line\":$LINE_NUMBER,\"side\":\"RIGHT\"}"
+    ###      done
+    ###    done
+    ###  shell: bash
 
 
     #- name: Install Reviewdog
