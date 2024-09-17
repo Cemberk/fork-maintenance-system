@@ -476,6 +476,7 @@ runs:
         # Compare the current branch with the downstream develop
         if git diff --quiet origin/${DOWNSTREAM_DEVELOP}..HEAD; then
           echo "No changes detected after rebase. Skipping PR creation."
+          echo "pr_merged=true" >> $GITHUB_ENV
         else
           REPO_OWNER=$(echo $GITHUB_REPOSITORY | cut -d'/' -f1)
           REPO_NAME=$(echo $GITHUB_REPOSITORY | cut -d'/' -f2)
@@ -483,7 +484,39 @@ runs:
           PR_NUMBER=$(echo $PR_URL | awk -F '/' '{print $NF}')
           echo "PR_URL=$PR_URL" >> $GITHUB_ENV
           echo "PR_NUMBER=$PR_NUMBER" >> $GITHUB_ENV
+          #PR_NUMBER=$(gh pr list --repo "${{ github.repository }}" --state merged --search "Sync downstream develop with downstream main" --json number --jq '.[0].number')
+          if [ -z "$PR_NUMBER" ]; then
+            echo "PR not merged yet."
+            echo "pr_merged=false" >> $GITHUB_ENV
+          else
+            echo "PR merged."
+            echo "pr_merged=true" >> $GITHUB_ENV
+          fi
         fi
+      shell: bash
+      env:
+        GITHUB_TOKEN: ${{ inputs.github_token }}
+    
+    - name: Wait for PR to be merged
+      if: env.pr_merged == 'false' && env.rebase_approved == 'true'
+      uses: alexeyzherdev/gh-pr-await-merge@v1
+      with:
+        pr_number: ${{ env.PR_NUMBER }}
+        repo: ${{ github.repository }}
+        token: ${{ inputs.github_token }}
+    
+    - name: Rebase downstream_develop onto downstream_main
+      if: env.pr_merged == 'true' && env.rebase_approved == 'true'
+      run: |
+        # Checkout downstream_develop branch
+        git checkout ${DOWNSTREAM_DEVELOP}
+        git pull origin ${DOWNSTREAM_DEVELOP}
+    
+        # Rebase onto downstream_main
+        git rebase origin/${DOWNSTREAM_MAIN}
+    
+        # Push the rebased branch
+        git push origin ${DOWNSTREAM_DEVELOP} --force-with-lease
       shell: bash
       env:
         GITHUB_TOKEN: ${{ inputs.github_token }}
