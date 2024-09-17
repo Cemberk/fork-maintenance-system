@@ -436,7 +436,7 @@ runs:
     ##  shell: bash
 
     - name: Handle Rebase Conflicts
-      if: env.conflicts == 'true'
+      if: env.conflicts == 'true' && env.rebase_approved == 'false'
       run: |
         echo "Aborting rebase due to conflicts."
         git rebase --abort
@@ -447,6 +447,7 @@ runs:
 
     #push the rebased branch to develop 
     - name: Push rebased branch
+      if: env.rebase_approved == 'false'
       run: |
         #git checkout tmp-${DOWNSTREAM_DEVELOP}-$(date +%Y%m%d)
         git push origin tmp-${DOWNSTREAM_DEVELOP}-$(date +%Y%m%d) --force
