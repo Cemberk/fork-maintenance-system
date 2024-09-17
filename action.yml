@@ -383,6 +383,7 @@ runs:
     ##  shell: bash
 
     - name: Checkout and rebase with branch removal
+      if: env.rebase_approved == 'false'
       run: |
         BRANCH_NAME=tmp-${DOWNSTREAM_DEVELOP}-$(date +%Y%m%d)
         # Delete existing branch if it exists
