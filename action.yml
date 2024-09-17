@@ -497,13 +497,44 @@ runs:
       env:
         GITHUB_TOKEN: ${{ inputs.github_token }}
     
+    #- name: Wait for PR to be merged
+    #  if: env.pr_merged == 'false' && env.rebase_approved == 'true'
+    #  uses: alexeyzherdev/gh-pr-await-merge@v1
+    #  with:
+    #    pr_number: ${{ env.PR_NUMBER }}
+    #    repo: ${{ github.repository }}
+    #    token: ${{ inputs.github_token }}
+
     - name: Wait for PR to be merged
       if: env.pr_merged == 'false' && env.rebase_approved == 'true'
-      uses: alexeyzherdev/gh-pr-await-merge@v1
-      with:
-        pr_number: ${{ env.PR_NUMBER }}
-        repo: ${{ github.repository }}
-        token: ${{ inputs.github_token }}
+      run: |
+        PR_NUMBER=${{ env.PR_NUMBER }}
+        MAX_WAIT_TIME=$((60 * 60 * 6))  # 6 hours in seconds
+        START_TIME=$(date +%s)
+        while true; do
+          PR_STATE=$(gh pr view $PR_NUMBER --json state --jq '.state')
+          echo "Current PR state: $PR_STATE"
+          if [ "$PR_STATE" = "MERGED" ]; then
+            echo "PR is merged."
+            break
+          elif [ "$PR_STATE" = "CLOSED" ]; then
+            echo "PR is closed without merging."
+            exit 1
+          else
+            echo "PR is not merged yet. Waiting for 5 minutes..."
+            sleep 300  # Wait for 5 minutes
+          fi
+          CURRENT_TIME=$(date +%s)
+          ELAPSED_TIME=$((CURRENT_TIME - START_TIME))
+          if [ "$ELAPSED_TIME" -ge "$MAX_WAIT_TIME" ]; then
+            echo "Maximum wait time exceeded. Exiting."
+            exit 1
+          fi
+        done
+        echo "pr_merged=true" >> $GITHUB_ENV
+      shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.github_token }}
     
     - name: Rebase downstream_develop onto downstream_main
       if: env.pr_merged == 'true' && env.rebase_approved == 'true'
