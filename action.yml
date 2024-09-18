@@ -486,14 +486,15 @@ runs:
           PR_NUMBER=$(echo $PR_URL | awk -F '/' '{print $NF}')
           echo "PR_URL=$PR_URL" >> $GITHUB_ENV
           echo "PR_NUMBER=$PR_NUMBER" >> $GITHUB_ENV
+          echo "pr_merged=false" >> $GITHUB_ENV
           #PR_NUMBER=$(gh pr list --repo "${{ github.repository }}" --state merged --search "Sync downstream develop with downstream main" --json number --jq '.[0].number')
-          if [ -z "$PR_NUMBER" ]; then
-            echo "PR not merged yet."
-            echo "pr_merged=false" >> $GITHUB_ENV
-          else
-            echo "PR merged."
-            echo "pr_merged=true" >> $GITHUB_ENV
-          fi
+          #if [ -z "$PR_NUMBER" ]; then
+          #  echo "PR not merged yet."
+          #  echo "pr_merged=false" >> $GITHUB_ENV
+          #else
+          #  echo "PR merged."
+          #  echo "pr_merged=true" >> $GITHUB_ENV
+          #fi
         fi
       shell: bash
       env:
@@ -508,7 +509,7 @@ runs:
     #    token: ${{ inputs.github_token }}
 
     - name: Wait for PR to be merged
-      if: env.pr_merged == 'false' && env.rebase_approved == 'true'
+      if: env.pr_merged == 'false' && env.rebase_approved == 'false'
       run: |
         PR_NUMBER=${{ env.PR_NUMBER }}
         MAX_WAIT_TIME=$((60 * 60 * 6))  # 6 hours in seconds
@@ -518,6 +519,28 @@ runs:
           echo "Current PR state: $PR_STATE"
           if [ "$PR_STATE" = "MERGED" ]; then
             echo "PR is merged."
+            #instead of wait we can test and post results to pr 
+            #fetch
+            git pull
+            #pip install 
+            docker exec my_container bash -c "cd /myworkspace; pip install -e ."
+            #ut 
+            echo "Running unit tests inside Docker..."
+            docker exec my_container bash -c "cd /myworkspace; ${{ inputs.unit_test_command }} 2>&1 | tee /myworkspace/UNIT_TEST_RESULTS.txt" 
+            echo "Unit Test Results: $(cat UNIT_TEST_RESULTS.txt)"
+            #perf
+            echo "Running performance tests inside Docker..."
+            docker exec my_container bash -c "cd /myworkspace; ${{ inputs.performance_test_command }} 2>&1 | tee /myworkspace/PERF_TEST_RESULTS.txt" 
+            echo "Performance Test Results: $(cat PERF_TEST_RESULTS.txt)"
+            #append to issue
+            REPO_OWNER=$(echo $GITHUB_REPOSITORY | cut -d'/' -f1)
+            REPO_NAME=$(echo $GITHUB_REPOSITORY | cut -d'/' -f2)
+            UNIT_TEST_COMMENT="### Unit Test Results for Automated PR ${{ env.BRANCH_NAME }} <br /> <br /> $(cat UNIT_TEST_RESULTS.txt) <br /> "
+            PERFORMANCE_TEST_COMMENT="### Performance Test Results for Automated PR ${{ env.BRANCH_NAME }} <br /> <br /> $(cat PERF_TEST_RESULTS.txt) <br /> "
+            gh issue comment ${{ env.issue_number }} --body "$UNIT_TEST_COMMENT <br /> <br /> $PERFORMANCE_TEST_COMMENT" --repo "$REPO_OWNER/$REPO_NAME"
+            rm -rf UNIT_TEST_RESULTS.txt
+            rm -rf PERF_TEST_RESULTS.txt
+            sudo rm -rf reports/
             break
           elif [ "$PR_STATE" = "CLOSED" ]; then
             echo "PR is closed without merging."
