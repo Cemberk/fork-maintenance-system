@@ -361,8 +361,8 @@ runs:
     - name: Upload perf file as artifact test 2 
         uses: actions/upload-artifact@v3
         with:
-          name: git-perf-file-test-2
-          path: 2_PERF_TEST_RESULTS.txt
+          name: git-perf-file-test-1
+          path: 1_PERF_TEST_RESULTS.txt
 
     - name: Append Test Results to Issue
       if: env.rebase_approved == 'false'
