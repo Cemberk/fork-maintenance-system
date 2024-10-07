@@ -36,24 +36,6 @@ inputs:
 runs:
   using: "composite"
   steps:
-    - name: Start Docker container
-      id: start_docker_container
-      run: |
-        EXTERNAL_DIR="/tmp/docker_run_$(date +%s)"
-        mkdir -p $EXTERNAL_DIR
-        # Start the Docker container
-        CONTAINER_ID=$(docker run -d -v $(pwd):/myworkspace ${{ inputs.docker_options }} --name my_container ${{ inputs.docker_image }} /bin/bash -c  "tail -f /dev/null") #/bin/bash -c  "tail -f /dev/null") # 
-        #docker start my_container
-        docker ps -a
-        docker exec -i my_container /bin/bash -c "ls; pwd"
-        # Save the run script
-        echo "docker exec -i $CONTAINER_ID /bin/bash -c " > $EXTERNAL_DIR/run_docker.sh
-        
-        # Save the container ID and external directory for future steps
-        echo "CONTAINER_ID=$CONTAINER_ID" >> $GITHUB_ENV
-        echo "EXTERNAL_DIR=$EXTERNAL_DIR" >> $GITHUB_ENV
-      shell: bash
-
   
     #- name: Check out code
     #  uses: actions/checkout@v4
@@ -65,10 +47,13 @@ runs:
       run: |
         # Set repository URL and target directory
         REPO_URL="https://github.com/${{ github.repository }}"
-        TARGET_DIR="${{ github.workspace }}/repository"
+        TARGET_DIR="${{ github.workspace }}"
     
         # Create target directory if it doesn't exist
-        mkdir -p $TARGET_DIR
+        #mkdir -p $TARGET_DIR
+        # Clean the target directory
+        #sudo rm -rf "$TARGET_DIR"/*
+        find . -name . -o -prune -exec sudo rm -rf -- {} +
     
         # Navigate to the working directory
         cd $TARGET_DIR
@@ -94,13 +79,29 @@ runs:
         git checkout FETCH_HEAD
     
         # Set permissions for .git directory if needed (modify as required)
-        sudo chmod -R u+w .git
+        #sudo chmod -R u+w .git
     
         # If you need to pull submodules (if applicable)
         git submodule update --init --recursive
       shell: bash
 
-    
+    - name: Start Docker container
+      id: start_docker_container
+      run: |
+        EXTERNAL_DIR="/tmp/docker_run_$(date +%s)"
+        mkdir -p $EXTERNAL_DIR
+        # Start the Docker container
+        CONTAINER_ID=$(docker run -d -v $(pwd):/myworkspace ${{ inputs.docker_options }} --name my_container ${{ inputs.docker_image }} /bin/bash -c  "tail -f /dev/null") #/bin/bash -c  "tail -f /dev/null") # 
+        #docker start my_container
+        docker ps -a
+        docker exec -i my_container /bin/bash -c "ls; pwd"
+        # Save the run script
+        echo "docker exec -i $CONTAINER_ID /bin/bash -c " > $EXTERNAL_DIR/run_docker.sh
+        
+        # Save the container ID and external directory for future steps
+        echo "CONTAINER_ID=$CONTAINER_ID" >> $GITHUB_ENV
+        echo "EXTERNAL_DIR=$EXTERNAL_DIR" >> $GITHUB_ENV
+      shell: bash
       
     - name: Set up Git
       run: |
@@ -110,7 +111,7 @@ runs:
         echo "https://x-access-token:$GITHUB_TOKEN@github.com" > $HOME/.git-credentials
         ##git config --global credential.helper '!f() { sleep 1; echo "username=git token=$GITHUB_TOKEN"; }; f'
         #git config --global --add safe.directory /__w/transformers/transformers
-        git config --global --add safe.directory /var/lib/github-runner/_work/transformers/transformers
+        #git config --global --add safe.directory /var/lib/github-runner/_work/transformers/transformers
       shell: bash
       env:
         GITHUB_TOKEN: ${{ inputs.github_token }}
@@ -134,14 +135,15 @@ runs:
         echo "DOWNSTREAM_DEVELOP=$DOWNSTREAM_DEVELOP" >> $GITHUB_ENV
         echo "DOWNSTREAM_TESTING=$DOWNSTREAM_TESTING" >> $GITHUB_ENV
         echo "COMMITS=$COMMITS" >> $GITHUB_ENV
+        rm -rf schedule.json
       shell: bash
 
     - name: Ensure permissions for .git directory
       run: |
         sudo chmod -R u+w .git || true
         ls -l .git/
-        sudo chown -R $(whoami) .
-        sudo chmod -R u+w .
+        chown -R $(whoami) .
+        chmod -R u+w .
       shell: bash
         
     - name: Add upstream remote
@@ -268,6 +270,7 @@ runs:
 
     - name: Rebase upstream main into downstream main
       run: |
+        git status
         git rebase upstream/${{ env.UPSTREAM_MAIN }} || true
         #git checkout -b ${{ inputs.pr_branch_prefix }}-sync-test-$(date +%Y%m%d)
         #git push origin ${{ inputs.pr_branch_prefix }}-sync-test-$(date +%Y%m%d)
@@ -291,7 +294,7 @@ runs:
         EOF
         docker cp run_in_container.sh $CONTAINER_ID:/myworkspace/
         # Execute the script inside Docker
-        docker exec my_container bash -c "pwd"
+        docker exec my_container bash -c "cd /myworkspace && git config --global --add safe.directory /myworkspace"
         docker exec my_container bash -c "cd /myworkspace && chmod +x run_in_container.sh && ./run_in_container.sh"
         rm -rf run_in_container.sh
         #docker exec my_container bash "ls && pwd"
@@ -366,12 +369,12 @@ runs:
       run: |
         REPO_OWNER=$(echo $GITHUB_REPOSITORY | cut -d'/' -f1)
         REPO_NAME=$(echo $GITHUB_REPOSITORY | cut -d'/' -f2)
-        
         UNIT_TEST_COMMENT="### Unit Test Results for sync ${{ env.BRANCH_NAME }} <br /> \`\`\` <br /> $(cat 1_UNIT_TEST_RESULTS.txt) <br /> \`\`\`"
         PERFORMANCE_TEST_COMMENT="### Performance Test Results for ${{ env.BRANCH_NAME }} <br /> \`\`\` <br /> $(cat 1_PERF_TEST_RESULTS.txt) <br /> \`\`\`"
         gh issue comment ${{ env.issue_number }} --body "$UNIT_TEST_COMMENT <br /> <br /> $PERFORMANCE_TEST_COMMENT" --repo "$REPO_OWNER/$REPO_NAME"
         rm -rf UNIT_TEST_RESULTS.txt
         rm -rf PERF_TEST_RESULTS.txt
+        sudo rm -rf reports/
       shell: bash
       env:
         GITHUB_TOKEN: ${{ inputs.github_token }}
@@ -399,16 +402,15 @@ runs:
     ##  shell: bash
 
     - name: Checkout and rebase with branch removal
+      if: env.rebase_approved == 'false'
       run: |
         BRANCH_NAME=tmp-${DOWNSTREAM_DEVELOP}-$(date +%Y%m%d)
-        # Check if the branch already exists and delete it
-        if git show-ref --verify --quiet refs/heads/$BRANCH_NAME; then
-          echo "Branch $BRANCH_NAME exists. Deleting it."
-          git branch -D $BRANCH_NAME
-        fi
-        # Create the new branch and rebase
-        git checkout -b $BRANCH_NAME origin/$DOWNSTREAM_DEVELOP
-        git rebase origin/$DOWNSTREAM_MAIN || true
+        # Delete existing branch if it exists
+        git branch -D $BRANCH_NAME || true
+        # Create new branch from downstream develop
+        git checkout -b $BRANCH_NAME origin/${DOWNSTREAM_DEVELOP}
+        # Attempt to rebase onto downstream main
+        git rebase origin/${DOWNSTREAM_MAIN} || true
         echo "BRANCH_NAME=${BRANCH_NAME}" >> $GITHUB_ENV
         git diff origin/$BRANCH_NAME..origin/$DOWNSTREAM_DEVELOP > ../develop_diff.txt
       shell: bash
@@ -427,8 +429,15 @@ runs:
     - name: Check for rebase conflicts
       id: check_conflicts
       run: |
-        git ls-files -u
-        if git ls-files -u | grep -q '^'; then
+        #git ls-files -u
+        #if git ls-files -u | grep -q '^'; then
+        #  echo "Rebase conflicts detected."
+        #  echo "conflicts=true" >> $GITHUB_ENV
+        #else
+        #  echo "No rebase conflicts."
+        #  echo "conflicts=false" >> $GITHUB_ENV
+        #fi
+        if git status | grep -q "Unmerged paths"; then
           echo "Rebase conflicts detected."
           echo "conflicts=true" >> $GITHUB_ENV
         else
@@ -437,18 +446,29 @@ runs:
         fi
       shell: bash
 
-    - name: Commit conflict markers
-      if: env.conflicts == 'true'
+    ##- name: Commit conflict markers
+    ##  if: env.conflicts == 'true'
+    ##  run: |
+    ##    git status
+    ##    git add . 
+    ##    #-u
+    ##    GIT_EDITOR=true git rebase --continue || true
+    ##    #git commit -m "Mark conflict markers for review"
+    ##  shell: bash
+
+    - name: Handle Rebase Conflicts
+      if: env.conflicts == 'true' && env.rebase_approved == 'false'
       run: |
-        git status
-        git add . 
-        #-u
-        GIT_EDITOR=true git rebase --continue || true
-        #git commit -m "Mark conflict markers for review"
+        echo "Aborting rebase due to conflicts."
+        git rebase --abort
+        git merge origin/${DOWNSTREAM_MAIN} || true
+        git add -A
+        git commit -m "Merge downstream main into ${BRANCH_NAME} with conflicts"
       shell: bash
 
     #push the rebased branch to develop 
     - name: Push rebased branch
+      if: env.rebase_approved == 'false'
       run: |
         #git checkout tmp-${DOWNSTREAM_DEVELOP}-$(date +%Y%m%d)
         git push origin tmp-${DOWNSTREAM_DEVELOP}-$(date +%Y%m%d) --force
@@ -478,6 +498,7 @@ runs:
         # Compare the current branch with the downstream develop
         if git diff --quiet origin/${DOWNSTREAM_DEVELOP}..HEAD; then
           echo "No changes detected after rebase. Skipping PR creation."
+          echo "pr_merged=true" >> $GITHUB_ENV
         else
           REPO_OWNER=$(echo $GITHUB_REPOSITORY | cut -d'/' -f1)
           REPO_NAME=$(echo $GITHUB_REPOSITORY | cut -d'/' -f2)
@@ -485,39 +506,126 @@ runs:
           PR_NUMBER=$(echo $PR_URL | awk -F '/' '{print $NF}')
           echo "PR_URL=$PR_URL" >> $GITHUB_ENV
           echo "PR_NUMBER=$PR_NUMBER" >> $GITHUB_ENV
+          echo "pr_merged=false" >> $GITHUB_ENV
+          #PR_NUMBER=$(gh pr list --repo "${{ github.repository }}" --state merged --search "Sync downstream develop with downstream main" --json number --jq '.[0].number')
+          #if [ -z "$PR_NUMBER" ]; then
+          #  echo "PR not merged yet."
+          #  echo "pr_merged=false" >> $GITHUB_ENV
+          #else
+          #  echo "PR merged."
+          #  echo "pr_merged=true" >> $GITHUB_ENV
+          #fi
         fi
       shell: bash
-      
+      env:
+        GITHUB_TOKEN: ${{ inputs.github_token }}
+    
+    #- name: Wait for PR to be merged
+    #  if: env.pr_merged == 'false' && env.rebase_approved == 'true'
+    #  uses: alexeyzherdev/gh-pr-await-merge@v1
+    #  with:
+    #    pr_number: ${{ env.PR_NUMBER }}
+    #    repo: ${{ github.repository }}
+    #    token: ${{ inputs.github_token }}
 
-    - name: Create suggestions for conflicts
-      if: env.conflicts == 'true'
+    - name: Wait for PR to be merged
+      if: env.pr_merged == 'false' && env.rebase_approved == 'false'
       run: |
-        git diff --name-only --diff-filter=U | while read file; do
-          # Split the file into ancestor, our-version, and their-version
-          git show :1:"$file" > ancestor.txt || echo "" > ancestor.txt
-          git show :2:"$file" > our-version.txt || echo "" > our-version.txt
-          git show :3:"$file" > their-version.txt || echo "" > their-version.txt
-          
-          # Create conflict suggestions for each conflict in the file
-          conflict_markers=$(grep -n '<<<<<<<' $file | cut -d: -f1)
-          for marker in $conflict_markers; do
-            LINE_NUMBER=$((marker+1))
-            echo $marker
-            diff3 -m our-version.txt ancestor.txt their-version.txt > conflict_$LINE_NUMBER.txt
-            
-            # Post suggestion for this conflict
-            COMMENT_BODY="### Conflict detected in \`$file\` at line $LINE_NUMBER\n\`\`\`diff\n$(cat conflict_$LINE_NUMBER.txt)\n\`\`\`\nPlease resolve the conflict by keeping the necessary changes."
-            
-            curl -L \
-              -X POST \
-              -H "Accept: application/vnd.github+json" \
-              -H "Authorization: Bearer ${{ inputs.github_token }}" \
-              -H "X-GitHub-Api-Version: 2022-11-28" \
-              https://api.github.com/repos/${{ github.repository_owner }}/$(basename ${{ github.repository }})/pulls/${{ env.PR_NUMBER }}/comments \
-              -d "{\"body\":\"${COMMENT_BODY}\",\"commit_id\":\"${{ github.event.pull_request.head.sha }}\",\"path\":\"$file\",\"line\":$LINE_NUMBER,\"side\":\"RIGHT\"}"
-          done
+        PR_NUMBER=${{ env.PR_NUMBER }}
+        MAX_WAIT_TIME=$((60 * 60 * 6))  # 6 hours in seconds
+        START_TIME=$(date +%s)
+        REPO_OWNER=$(echo $GITHUB_REPOSITORY | cut -d'/' -f1)
+        REPO_NAME=$(echo $GITHUB_REPOSITORY | cut -d'/' -f2)
+        while true; do
+          PR_STATE=$(gh pr view $PR_NUMBER --json state --jq '.state' --repo "$REPO_OWNER/$REPO_NAME")
+          echo "Current PR state: $PR_STATE"
+          if [ "$PR_STATE" = "MERGED" ]; then
+            echo "PR is merged."
+            #instead of wait we can test and post results to pr 
+            #fetch
+            git pull
+            #pip install 
+            docker exec my_container bash -c "cd /myworkspace; pip install -e ."
+            #ut 
+            echo "Running unit tests inside Docker..."
+            docker exec my_container bash -c "cd /myworkspace; ${{ inputs.unit_test_command }} 2>&1 | tee /myworkspace/UNIT_TEST_RESULTS.txt" 
+            echo "Unit Test Results: $(cat UNIT_TEST_RESULTS.txt)"
+            #perf
+            echo "Running performance tests inside Docker..."
+            docker exec my_container bash -c "cd /myworkspace; ${{ inputs.performance_test_command }} 2>&1 | tee /myworkspace/PERF_TEST_RESULTS.txt" 
+            echo "Performance Test Results: $(cat PERF_TEST_RESULTS.txt)"
+            #append to issue
+            UNIT_TEST_COMMENT="### Unit Test Results for Automated PR ${{ env.BRANCH_NAME }} <br /> <br /> $(cat UNIT_TEST_RESULTS.txt) <br /> "
+            PERFORMANCE_TEST_COMMENT="### Performance Test Results for Automated PR ${{ env.BRANCH_NAME }} <br /> <br /> $(cat PERF_TEST_RESULTS.txt) <br /> "
+            gh issue comment ${{ env.issue_number }} --body "$UNIT_TEST_COMMENT <br /> <br /> $PERFORMANCE_TEST_COMMENT" --repo "$REPO_OWNER/$REPO_NAME"
+            rm -rf UNIT_TEST_RESULTS.txt
+            rm -rf PERF_TEST_RESULTS.txt
+            sudo rm -rf reports/
+            break
+          elif [ "$PR_STATE" = "CLOSED" ]; then
+            echo "PR is closed without merging."
+            exit 1
+          else
+            echo "PR is not merged yet. Waiting for 5 minutes..."
+            sleep 300  # Wait for 5 minutes
+          fi
+          CURRENT_TIME=$(date +%s)
+          ELAPSED_TIME=$((CURRENT_TIME - START_TIME))
+          if [ "$ELAPSED_TIME" -ge "$MAX_WAIT_TIME" ]; then
+            echo "Maximum wait time exceeded. Exiting."
+            exit 1
+          fi
         done
+        echo "pr_merged=true" >> $GITHUB_ENV
       shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.github_token }}
+    
+    - name: Rebase downstream_develop onto downstream_main
+      if: env.pr_merged == 'true' && env.rebase_approved == 'true'
+      run: |
+        # Checkout downstream_develop branch
+        git checkout ${DOWNSTREAM_DEVELOP}
+        git pull origin ${DOWNSTREAM_DEVELOP}
+    
+        # Rebase onto downstream_main
+        git rebase origin/${DOWNSTREAM_MAIN}
+    
+        # Push the rebased branch
+        git push origin ${DOWNSTREAM_DEVELOP} --force-with-lease
+      shell: bash
+      env:
+        GITHUB_TOKEN: ${{ inputs.github_token }}
+
+    ###- name: Create suggestions for conflicts
+    ###  if: env.conflicts == 'true'
+    ###  run: |
+    ###    git diff --name-only --diff-filter=U | while read file; do
+    ###      # Split the file into ancestor, our-version, and their-version
+    ###      git show :1:"$file" > ancestor.txt || echo "" > ancestor.txt
+    ###      git show :2:"$file" > our-version.txt || echo "" > our-version.txt
+    ###      git show :3:"$file" > their-version.txt || echo "" > their-version.txt
+    ###      
+    ###      # Create conflict suggestions for each conflict in the file
+    ###      conflict_markers=$(grep -n '<<<<<<<' $file | cut -d: -f1)
+    ###      for marker in $conflict_markers; do
+    ###        LINE_NUMBER=$((marker+1))
+    ###        echo $marker
+    ###        diff3 -m our-version.txt ancestor.txt their-version.txt > conflict_$LINE_NUMBER.txt
+    ###        
+    ###        # Post suggestion for this conflict
+    ###        COMMENT_BODY="### Conflict detected in \`$file\` at line $LINE_NUMBER\n\`\`\`diff\n$(cat conflict_$LINE_NUMBER.txt)\n\`\`\`\nPlease resolve the conflict by keeping the necessary changes."
+    ###        
+    ###        curl -L \
+    ###          -X POST \
+    ###          -H "Accept: application/vnd.github+json" \
+    ###          -H "Authorization: Bearer ${{ inputs.github_token }}" \
+    ###          -H "X-GitHub-Api-Version: 2022-11-28" \
+    ###          https://api.github.com/repos/${{ github.repository_owner }}/$(basename ${{ github.repository }})/pulls/${{ env.PR_NUMBER }}/comments \
+    ###          -d "{\"body\":\"${COMMENT_BODY}\",\"commit_id\":\"${{ github.event.pull_request.head.sha }}\",\"path\":\"$file\",\"line\":$LINE_NUMBER,\"side\":\"RIGHT\"}"
+    ###      done
+    ###    done
+    ###  shell: bash
 
 
     #- name: Install Reviewdog
@@ -664,7 +772,7 @@ runs:
         REPO_NAME=$(echo $GITHUB_REPOSITORY | cut -d'/' -f2)
         DIFF_ARTIFACT_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts/git-diff-file-test-2"
         COMPARE_URL="https://github.com/ROCm/transformers/compare/$DOWNSTREAM_TESTING...ROCm:transformers:tmp-${DOWNSTREAM_DEVELOP}-$(date +%Y%m%d)" 
-        DIFF_INFO="Git diff artifact URL for tmp-${DOWNSTREAM_DEVELOP}-$(date +%Y%m%d) vs ${DOWNSTREAM_DEVELOP}: $ARTIFACT_URL  <br /> Compare URL on Github: $COMPARE_URL"
+        DIFF_INFO="Git diff artifact URL for tmp-${DOWNSTREAM_DEVELOP}-$(date +%Y%m%d) vs ${DOWNSTREAM_DEVELOP}: $ARTIFACT_URL <br /> Compare URL on Github: $COMPARE_URL"
         UT_ARTIFACT_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts/git-ut-file-test-2"
         UNIT_TEST_INFO="### Unit Test Results for Testing Branch ${{ env.BRANCH_NAME }} <br /> \`\`\` <br /> $UT_ARTIFACT_URL <br /> \`\`\`"
         UNIT_TEST_COMMENT="### Unit Test Results for develop ${{ env.BRANCH_NAME }} <br /> \`\`\` <br /> $(cat 2_UNIT_TEST_RESULTS.txt) <br /> \`\`\`"
@@ -674,6 +782,7 @@ runs:
         gh issue comment ${{ env.issue_number }} --body "$DIFF_INFO <br /> <br /> $UNIT_TEST_COMMENT <br /> <br /> $PERFORMANCE_TEST_COMMENT" --repo "$REPO_OWNER/$REPO_NAME"
         rm -rf UNIT_TEST_RESULTS.txt
         rm -rf PERF_TEST_RESULTS.txt
+        sudo rm -rf reports/
       shell: bash
       env:
         GITHUB_TOKEN: ${{ inputs.github_token }}
@@ -813,6 +922,20 @@ runs:
         docker stop my_container
         docker rm my_container
         rm -rf ${{ env.EXTERNAL_DIR }}
+        TARGET_DIR="${{ github.workspace }}"
+        if [ -d $TARGET_DIR ]; then
+          # Clean the working directory and reset the repository to its original state
+          cd $TARGET_DIR
+          #chmod -R u+w $TARGET_DIR
+          git rebase --abort || true
+          git merge --abort || true
+          git reset --hard
+          sudo git clean -fdx
+          #git worktree prune
+          git branch -D ${DOWNSTREAM_TESTING} || true
+          git branch -D tmp-${{ env.DOWNSTREAM_DEVELOP }}-* || true
+          rm -fr .git/rebase-merge .git/MERGE_HEAD
+        fi
       shell: bash
 
 # Example schedule.json
