@@ -74,6 +74,7 @@ runs:
     
         # Fetch the repository contents
         git fetch origin ${{ github.ref }}
+        git fetch --all
     
         # Checkout the current branch or commit
         git checkout FETCH_HEAD
