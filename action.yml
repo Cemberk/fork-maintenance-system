@@ -74,6 +74,8 @@ runs:
     
         # Fetch the repository contents
         git fetch origin ${{ github.ref }}
+        git fetch origin '+refs/heads/*:refs/remotes/origin/*'
+        git fetch upstream '+refs/heads/*:refs/remotes/upstream/*'
         git fetch --all
     
         # Checkout the current branch or commit
