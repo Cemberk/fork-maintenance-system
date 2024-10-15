@@ -369,13 +369,24 @@ runs:
     - name: Retrieve Artifact IDs
       id: get_artifacts
       run: |
-        # Fetch artifacts for the current run
-        artifacts=$(gh api "repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts" --jq '.artifacts[] | {name: .name, id: .id}')
+        # Fetch artifacts JSON
+        artifacts_json=$(gh api "repos/${repo}/actions/runs/${run_id}/artifacts")
+        echo "Artifacts JSON:"
+        echo "$artifacts_json"
     
-        # Extract IDs based on artifact names
-        git_diff_id=$(echo "$artifacts" | jq -r 'select(.name=="git-diff-file-test-1") | .id')
-        git_ut_id=$(echo "$artifacts" | jq -r 'select(.name=="git-ut-file-test-1") | .id')
-        git_perf_id=$(echo "$artifacts" | jq -r 'select(.name=="git-perf-file-test-1") | .id')
+        # List all artifact names for verification
+        echo "Artifact Names:"
+        echo "$artifacts_json" | jq -r '.artifacts[].name'
+    
+        # Extract artifact IDs based on names
+        git_diff_id=$(echo "$artifacts_json" | jq -r '.artifacts[] | select(.name=="git-diff-file-test-1") | .id')
+        git_ut_id=$(echo "$artifacts_json" | jq -r '.artifacts[] | select(.name=="git-ut-file-test-1") | .id')
+        git_perf_id=$(echo "$artifacts_json" | jq -r '.artifacts[] | select(.name=="git-perf-file-test-1") | .id')
+
+        # Debug: print the IDs
+        echo "git_diff_id: $git_diff_id"
+        echo "git_ut_id: $git_ut_id"
+        echo "git_perf_id: $git_perf_id"
     
         # Construct artifact URLs
         git_diff_url="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts/${git_diff_id}"
