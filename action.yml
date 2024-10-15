@@ -267,7 +267,7 @@ runs:
         git checkout ${{ env.DOWNSTREAM_MAIN }} # || git checkout -b ${{ env.DOWNSTREAM_MAIN }} upstream/${{ env.UPSTREAM_MAIN }}
         git pull origin ${{ env.DOWNSTREAM_MAIN }}
         echo "BRANCH_NAME=${DOWNSTREAM_MAIN}" >> $GITHUB_ENV
-        git diff origin/${{ env.DOWNSTREAM_MAIN }}..upstream/${{ env.UPSTREAM_MAIN }} > ../sync_diff.txt
+        git diff origin/${{ env.DOWNSTREAM_MAIN }}..upstream/${{ env.UPSTREAM_MAIN }} > sync_diff.txt
       shell: bash
 
     - name: Rebase upstream main into downstream main
@@ -352,7 +352,7 @@ runs:
       uses: actions/upload-artifact@v3
       with:
         name: git-diff-file-test-1
-        path: ../sync_diff.txt
+        path: sync_diff.txt
 
     - name: Upload ut file as artifact test 1 
       uses: actions/upload-artifact@v3
@@ -383,6 +383,7 @@ runs:
         gh issue comment ${{ env.issue_number }} --body "$DIFF_INFO <br /> <br /> $UNIT_TEST_COMMENT <br /> <br /> $PERFORMANCE_TEST_COMMENT" --repo "$REPO_OWNER/$REPO_NAME"
         rm -rf 1_UNIT_TEST_RESULTS.txt
         rm -rf 1_PERF_TEST_RESULTS.txt
+        rm -rf sync_diff.txt
         sudo rm -rf reports/
       shell: bash
       env:
@@ -421,7 +422,7 @@ runs:
         # Attempt to rebase onto downstream main
         git rebase origin/${DOWNSTREAM_MAIN} || true
         echo "BRANCH_NAME=${BRANCH_NAME}" >> $GITHUB_ENV
-        git diff origin/$BRANCH_NAME..origin/$DOWNSTREAM_DEVELOP > ../develop_diff.txt
+        git diff origin/$BRANCH_NAME..origin/$DOWNSTREAM_DEVELOP > develop_diff.txt
       shell: bash
 
 
@@ -760,7 +761,7 @@ runs:
       uses: actions/upload-artifact@v3
       with:
         name: git-diff-file-test-2
-        path: ../develop_diff.txt
+        path: develop_diff.txt
 
     - name: Upload ut file as artifact test 2 
       uses: actions/upload-artifact@v3
@@ -791,6 +792,7 @@ runs:
         gh issue comment ${{ env.issue_number }} --body "$DIFF_INFO <br /> <br /> $UNIT_TEST_COMMENT <br /> <br /> $PERFORMANCE_TEST_COMMENT" --repo "$REPO_OWNER/$REPO_NAME"
         rm -rf 2_UNIT_TEST_RESULTS.txt
         rm -rf 2_PERF_TEST_RESULTS.txt
+        rm -rf develop_diff.txt
         sudo rm -rf reports/
       shell: bash
       env:
@@ -814,7 +816,7 @@ runs:
         for commit in "${commit_array[@]}"; do
           git cherry-pick $commit || true
         done
-        git diff origin/$BRANCH_NAME..upstream/$UPSTREAM_RELEASE > ../test_diff.txt
+        git diff origin/$BRANCH_NAME..upstream/$UPSTREAM_RELEASE > test_diff.txt
       shell: bash
 
     #push new branch 
@@ -888,7 +890,7 @@ runs:
       uses: actions/upload-artifact@v3
       with:
         name: git-diff-file-test-3
-        path: ../test_diff.txt
+        path: test_diff.txt
 
     - name: Upload ut file as artifact test 3 
       uses: actions/upload-artifact@v3
@@ -919,6 +921,7 @@ runs:
         gh issue comment ${{ env.issue_number }} --body "$DIFF_INFO <br /> <br /> $UNIT_TEST_INFO <br /> <br /> $PERFORMANCE_TEST_INFO" --repo "$REPO_OWNER/$REPO_NAME"
         rm -rf 3_UNIT_TEST_RESULTS.txt
         rm -rf 3_PERF_TEST_RESULTS.txt
+        rm -rf test_diff.txt
       shell: bash
       env:
         GITHUB_TOKEN: ${{ inputs.github_token }}
