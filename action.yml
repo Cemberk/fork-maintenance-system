@@ -380,10 +380,17 @@ runs:
         PERF_ARTIFACT_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts/git-perf-file-test-1"
         PERF_TEST_INFO="### Performance Test Results for ${{ env.BRANCH_NAME }} <br /> \`\`\` <br /> $PERF_ARTIFACT_URL <br /> \`\`\`"
         PERFORMANCE_TEST_COMMENT="### Performance Test Results for ${{ env.BRANCH_NAME }} <br /> \`\`\` <br /> $(cat 1_PERF_TEST_RESULTS.txt) <br /> \`\`\`"
-        gh issue comment ${{ env.issue_number }} --body "$DIFF_INFO <br /> <br /> $UNIT_TEST_COMMENT <br /> <br /> $PERFORMANCE_TEST_COMMENT" --repo "$REPO_OWNER/$REPO_NAME"
+
+        # Combine all parts into a single file
+        echo -e "$DIFF_INFO <br /> <br /> $UNIT_TEST_COMMENT <br /> <br /> $PERFORMANCE_TEST_COMMENT" > comment_body.txt
+        # Use --body-file to pass the comment body
+        gh issue comment ${{ env.issue_number }} --body-file comment_body.txt --repo "$REPO_OWNER/$REPO_NAME"
+
+        #gh issue comment ${{ env.issue_number }} --body "$DIFF_INFO <br /> <br /> $UNIT_TEST_COMMENT <br /> <br /> $PERFORMANCE_TEST_COMMENT" --repo "$REPO_OWNER/$REPO_NAME"
         rm -rf 1_UNIT_TEST_RESULTS.txt
         rm -rf 1_PERF_TEST_RESULTS.txt
         rm -rf sync_diff.txt
+        rm -rf comment_body.txt 
         sudo rm -rf reports/
       shell: bash
       env:
