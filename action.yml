@@ -366,6 +366,31 @@ runs:
         name: git-perf-file-test-1
         path: 1_PERF_TEST_RESULTS.txt
 
+    - name: Retrieve Artifact IDs
+      id: get_artifacts
+      run: |
+        # Fetch artifacts for the current run
+        artifacts=$(gh api "repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts" --jq '.artifacts[] | {name: .name, id: .id}')
+    
+        # Extract IDs based on artifact names
+        git_diff_id=$(echo "$artifacts" | jq -r 'select(.name=="git-diff-file-test-1") | .id')
+        git_ut_id=$(echo "$artifacts" | jq -r 'select(.name=="git-ut-file-test-1") | .id')
+        git_perf_id=$(echo "$artifacts" | jq -r 'select(.name=="git-perf-file-test-1") | .id')
+    
+        # Construct artifact URLs
+        git_diff_url="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts/${git_diff_id}"
+        git_ut_url="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts/${git_ut_id}"
+        git_perf_url="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts/${git_perf_id}"
+    
+        # Export URLs as environment variables
+        echo "GIT_DIFF_URL=$git_diff_url" >> $GITHUB_ENV
+        echo "GIT_UT_URL=$git_ut_url" >> $GITHUB_ENV
+        echo "GIT_PERF_URL=$git_perf_url" >> $GITHUB_ENV
+      shell: bash
+      env:
+        GITHUB_TOKEN: ${{ inputs.github_token }}
+
+
     - name: Append Test Results to Issue
       if: env.rebase_approved == 'false'
       run: |
@@ -381,8 +406,17 @@ runs:
         PERF_TEST_INFO="### Performance Test Results for ${{ env.BRANCH_NAME }} <br /> \`\`\` <br /> $PERF_ARTIFACT_URL <br /> \`\`\`"
         PERFORMANCE_TEST_COMMENT="### Performance Test Results for ${{ env.BRANCH_NAME }} <br /> \`\`\` <br /> $(cat 1_PERF_TEST_RESULTS.txt) <br /> \`\`\`"
 
+        DIFF_INFO="Git diff artifact URL: [Download git-diff-file-test-1]($GIT_DIFF_URL)"
+        UT_INFO="Unit Test Results: [Download git-ut-file-test-1]($GIT_UT_URL)"
+        PERF_INFO="Performance Test Results: [Download git-perf-file-test-1]($GIT_PERF_URL)"
         # Combine all parts into a single file
-        echo -e "$DIFF_INFO <br /> <br /> $UNIT_TEST_INFO <br /> <br /> $PERF_TEST_INFO" > comment_body.txt
+        {
+          echo "$DIFF_INFO"
+          echo ""
+          echo "$UT_INFO"
+          echo ""
+          echo "$PERF_INFO"
+        } > comment_body.txt
         # Use --body-file to pass the comment body
         gh issue comment ${{ env.issue_number }} --body-file comment_body.txt --repo "$REPO_OWNER/$REPO_NAME"
 
@@ -397,6 +431,9 @@ runs:
         GITHUB_TOKEN: ${{ inputs.github_token }}
         UNIT_TEST_RESULTS: ${{ env.UNIT_TEST_RESULTS }}
         PERFORMANCE_TEST_RESULTS: ${{ env.PERFORMANCE_TEST_RESULTS }}  
+        GIT_DIFF_URL: ${{ env.GIT_DIFF_URL }}
+        GIT_UT_URL: ${{ env.GIT_UT_URL }}
+        GIT_PERF_URL: ${{ env.GIT_PERF_URL }}
 
 
     #rebase from main to develop 
