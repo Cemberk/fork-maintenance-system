@@ -33,338 +33,362 @@ inputs:
     description: "Docker run options (e.g., '--gpus all' for NVIDIA or '--device=/dev/kfd' for AMD)"
     required: true
 
-runs:
-  using: "composite"
-  steps:
+jobs:
+  setup:
+    using: "composite"
+    outputs: #chek-prs is id: of step
+      pr-number: ${{ steps.check-prs.outputs.PR_NUMBER }}
+      upstream-main: ${{ steps.extract_branches.outputs.UPSTREAM_MAIN }}
+      upstream-release: ${{ steps.extract_branches.outputs.UPSTREAM_RELEASE }}
+      downstream-main: ${{ steps.extract_branches.outputs.DOWNSTREAM_MAIN }}
+      downstream-develop: ${{ steps.extract_branches.outputs.DOWNSTREAM_DEVELOP }}
+      downstream-testing: ${{ steps.extract_branches.outputs.DOWNSTREAM_TESTING }}
+      commits: ${{ steps.extract_branches.outputs.COMMITS }}
+    steps:
+    
+      #- name: Check out code
+      #  uses: actions/checkout@v4
+      #  with:
+      #    token: ${{ inputs.github_token }}
+      #    clean: false
   
-    #- name: Check out code
-    #  uses: actions/checkout@v4
-    #  with:
-    #    token: ${{ inputs.github_token }}
-    #    clean: false
-
-    - name: Custom Git Checkout
-      run: |
-        # Set repository URL and target directory
-        REPO_URL="https://github.com/${{ github.repository }}"
-        TARGET_DIR="${{ github.workspace }}"
-    
-        # Create target directory if it doesn't exist
-        #mkdir -p $TARGET_DIR
-        # Clean the target directory
-        #sudo rm -rf "$TARGET_DIR"/*
-        find . -name . -o -prune -exec sudo rm -rf -- {} +
-    
-        # Navigate to the working directory
-        cd $TARGET_DIR
-    
-        # Initialize a new Git repository
-        git init
-    
-        # Set up safe.directory
-        git config --global --add safe.directory $TARGET_DIR
-
-        # Check if the remote 'origin' already exists
-        if git remote | grep origin; then
-          git remote remove origin
-        fi
-    
-        # Add remote origin
-        git remote add origin $REPO_URL
-    
-        # Fetch the repository contents
-        git fetch origin ${{ github.ref }}
-    
-        # Checkout the current branch or commit
-        git checkout FETCH_HEAD
-    
-        # Set permissions for .git directory if needed (modify as required)
-        #sudo chmod -R u+w .git
-    
-        # If you need to pull submodules (if applicable)
-        git submodule update --init --recursive
-      shell: bash
-
-    - name: Start Docker container
-      id: start_docker_container
-      run: |
-        EXTERNAL_DIR="/tmp/docker_run_$(date +%s)"
-        mkdir -p $EXTERNAL_DIR
-        # Start the Docker container
-        CONTAINER_ID=$(docker run -d -v $(pwd):/myworkspace ${{ inputs.docker_options }} --name my_container ${{ inputs.docker_image }} /bin/bash -c  "tail -f /dev/null") #/bin/bash -c  "tail -f /dev/null") # 
-        #docker start my_container
-        docker ps -a
-        docker exec -i my_container /bin/bash -c "ls; pwd"
-        # Save the run script
-        echo "docker exec -i $CONTAINER_ID /bin/bash -c " > $EXTERNAL_DIR/run_docker.sh
-        
-        # Save the container ID and external directory for future steps
-        echo "CONTAINER_ID=$CONTAINER_ID" >> $GITHUB_ENV
-        echo "EXTERNAL_DIR=$EXTERNAL_DIR" >> $GITHUB_ENV
-      shell: bash
+      - name: Custom Git Checkout
+        run: |
+          # Set repository URL and target directory
+          REPO_URL="https://github.com/${{ github.repository }}"
+          TARGET_DIR="${{ github.workspace }}"
       
-    - name: Set up Git
-      run: |
-        git config --global user.name 'github-actions[bot]'
-        git config --global user.email 'github-actions[bot]@users.noreply.github.com'
-        git config --global credential.helper "store --file=$HOME/.git-credentials"
-        echo "https://x-access-token:$GITHUB_TOKEN@github.com" > $HOME/.git-credentials
-        ##git config --global credential.helper '!f() { sleep 1; echo "username=git token=$GITHUB_TOKEN"; }; f'
-        #git config --global --add safe.directory /__w/transformers/transformers
-        #git config --global --add safe.directory /var/lib/github-runner/_work/transformers/transformers
-      shell: bash
-      env:
-        GITHUB_TOKEN: ${{ inputs.github_token }}
-
-    - name: Fetch schedule JSON
-      run: echo '${{ inputs.schedule_json }}' > schedule.json
-      shell: bash
-
-    - name: Extract branch information
-      id: extract_branches
-      run: |
-        export UPSTREAM_MAIN=$(jq -r '.upstream_main_branch' schedule.json)
-        export UPSTREAM_RELEASE=$(jq -r '.upstream_release_branch' schedule.json)
-        export DOWNSTREAM_MAIN=$(jq -r '.downstream_main_branch' schedule.json)
-        export DOWNSTREAM_DEVELOP=$(jq -r '.downstream_develop_branch' schedule.json)
-        export DOWNSTREAM_TESTING=$(jq -r '.downstream_testing_branch' schedule.json)
-        export COMMITS=$(jq -r '[.commits[]] | join(",")' schedule.json)
-        echo "UPSTREAM_MAIN=$UPSTREAM_MAIN" >> $GITHUB_ENV
-        echo "UPSTREAM_RELEASE=$UPSTREAM_RELEASE" >> $GITHUB_ENV
-        echo "DOWNSTREAM_MAIN=$DOWNSTREAM_MAIN" >> $GITHUB_ENV
-        echo "DOWNSTREAM_DEVELOP=$DOWNSTREAM_DEVELOP" >> $GITHUB_ENV
-        echo "DOWNSTREAM_TESTING=$DOWNSTREAM_TESTING" >> $GITHUB_ENV
-        echo "COMMITS=$COMMITS" >> $GITHUB_ENV
-        rm -rf schedule.json
-      shell: bash
-
-    - name: Ensure permissions for .git directory
-      run: |
-        sudo chmod -R u+w .git || true
-        ls -l .git/
-        chown -R $(whoami) .
-        chmod -R u+w .
-      shell: bash
+          # Create target directory if it doesn't exist
+          #mkdir -p $TARGET_DIR
+          # Clean the target directory
+          #sudo rm -rf "$TARGET_DIR"/*
+          find . -name . -o -prune -exec sudo rm -rf -- {} +
+      
+          # Navigate to the working directory
+          cd $TARGET_DIR
+      
+          # Initialize a new Git repository
+          git init
+      
+          # Set up safe.directory
+          git config --global --add safe.directory $TARGET_DIR
+  
+          # Check if the remote 'origin' already exists
+          if git remote | grep origin; then
+            git remote remove origin
+          fi
+      
+          # Add remote origin
+          git remote add origin $REPO_URL
+      
+          # Fetch the repository contents
+          git fetch origin ${{ github.ref }}
+      
+          # Checkout the current branch or commit
+          git checkout FETCH_HEAD
+      
+          # Set permissions for .git directory if needed (modify as required)
+          #sudo chmod -R u+w .git
+      
+          # If you need to pull submodules (if applicable)
+          git submodule update --init --recursive
+        shell: bash
+  
+      - name: Start Docker container
+        id: start_docker_container
+        run: |
+          EXTERNAL_DIR="/tmp/docker_run_$(date +%s)"
+          mkdir -p $EXTERNAL_DIR
+          # Start the Docker container
+          CONTAINER_ID=$(docker run -d -v $(pwd):/myworkspace ${{ inputs.docker_options }} --name my_container ${{ inputs.docker_image }} /bin/bash -c  "tail -f /dev/null") #/bin/bash -c  "tail -f /dev/null") # 
+          #docker start my_container
+          docker ps -a
+          docker exec -i my_container /bin/bash -c "ls; pwd"
+          # Save the run script
+          echo "docker exec -i $CONTAINER_ID /bin/bash -c " > $EXTERNAL_DIR/run_docker.sh
+          
+          # Save the container ID and external directory for future steps
+          echo "CONTAINER_ID=$CONTAINER_ID" >> $GITHUB_ENV
+          echo "EXTERNAL_DIR=$EXTERNAL_DIR" >> $GITHUB_ENV
+        shell: bash
         
-    - name: Add upstream remote
-      run: |
-        #git config --get remote.origin.url
-        git remote add upstream ${{ inputs.upstream_repo }} || true
-        git remote set-url upstream ${{ inputs.upstream_repo }}
-        git config --get remote.origin.url
-    #    git remote set-url --push upstream no_push
-      shell: bash
-    
-    - name: Fetch upstream changes
-      run: |
-        git fetch upstream
-        git fetch origin '+refs/heads/*:refs/remotes/origin/*'
-        git fetch upstream '+refs/heads/*:refs/remotes/upstream/*'
-        git fetch --all
-        #git branch
-        #git fetch "origin/${{ env.DOWNSTREAM_MAIN }}"
-        #git fetch "origin/${{ env.DOWNSTREAM_DEVELOP }}"
-        #git checkout "origin/${{ env.DOWNSTREAM_MAIN }}"
-        #git switch -c ${{ inputs.pr_branch_prefix }}-sync-test-$(date +%Y%m%d) upstream/$UPSTREAM_MAIN
-      shell: bash
+      - name: Set up Git
+        run: |
+          git config --global user.name 'github-actions[bot]'
+          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+          git config --global credential.helper "store --file=$HOME/.git-credentials"
+          echo "https://x-access-token:$GITHUB_TOKEN@github.com" > $HOME/.git-credentials
+          ##git config --global credential.helper '!f() { sleep 1; echo "username=git token=$GITHUB_TOKEN"; }; f'
+          #git config --global --add safe.directory /__w/transformers/transformers
+          #git config --global --add safe.directory /var/lib/github-runner/_work/transformers/transformers
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ inputs.github_token }}
+  
+      - name: Fetch schedule JSON
+        run: echo '${{ inputs.schedule_json }}' > schedule.json
+        shell: bash
+  
+      - name: Extract branch information
+        id: extract_branches
+        run: |
+          export UPSTREAM_MAIN=$(jq -r '.upstream_main_branch' schedule.json)
+          export UPSTREAM_RELEASE=$(jq -r '.upstream_release_branch' schedule.json)
+          export DOWNSTREAM_MAIN=$(jq -r '.downstream_main_branch' schedule.json)
+          export DOWNSTREAM_DEVELOP=$(jq -r '.downstream_develop_branch' schedule.json)
+          export DOWNSTREAM_TESTING=$(jq -r '.downstream_testing_branch' schedule.json)
+          export COMMITS=$(jq -r '[.commits[]] | join(",")' schedule.json)
+          echo "UPSTREAM_MAIN=$UPSTREAM_MAIN" >> $GITHUB_ENV
+          echo "UPSTREAM_RELEASE=$UPSTREAM_RELEASE" >> $GITHUB_ENV
+          echo "DOWNSTREAM_MAIN=$DOWNSTREAM_MAIN" >> $GITHUB_ENV
+          echo "DOWNSTREAM_DEVELOP=$DOWNSTREAM_DEVELOP" >> $GITHUB_ENV
+          echo "DOWNSTREAM_TESTING=$DOWNSTREAM_TESTING" >> $GITHUB_ENV
+          echo "COMMITS=$COMMITS" >> $GITHUB_ENV
+          echo "UPSTREAM_MAIN=$UPSTREAM_MAIN" >> $GITHUB_OUTPUT
+          echo "UPSTREAM_RELEASE=$UPSTREAM_RELEASE" >> $GITHUB_OUTPUT
+          echo "DOWNSTREAM_MAIN=$DOWNSTREAM_MAIN" >> $GITHUB_OUTPUT
+          echo "DOWNSTREAM_DEVELOP=$DOWNSTREAM_DEVELOP" >> $GITHUB_OUTPUT
+          echo "DOWNSTREAM_TESTING=$DOWNSTREAM_TESTING" >> $GITHUB_OUTPUT
+          echo "COMMITS=$COMMITS" >> $GITHUB_OUTPUT
+          rm -rf schedule.json
+        shell: bash
+  
+      - name: Ensure permissions for .git directory
+        run: |
+          sudo chmod -R u+w .git || true
+          ls -l .git/
+          chown -R $(whoami) .
+          chmod -R u+w .
+        shell: bash
+          
+      - name: Add upstream remote
+        run: |
+          #git config --get remote.origin.url
+          git remote add upstream ${{ inputs.upstream_repo }} || true
+          git remote set-url upstream ${{ inputs.upstream_repo }}
+          git config --get remote.origin.url
+      #    git remote set-url --push upstream no_push
+        shell: bash
+      
+      - name: Fetch upstream changes
+        run: |
+          git fetch upstream
+          git fetch origin '+refs/heads/*:refs/remotes/origin/*'
+          git fetch upstream '+refs/heads/*:refs/remotes/upstream/*'
+          git fetch --all
+          #git branch
+          #git fetch "origin/${{ env.DOWNSTREAM_MAIN }}"
+          #git fetch "origin/${{ env.DOWNSTREAM_DEVELOP }}"
+          #git checkout "origin/${{ env.DOWNSTREAM_MAIN }}"
+          #git switch -c ${{ inputs.pr_branch_prefix }}-sync-test-$(date +%Y%m%d) upstream/$UPSTREAM_MAIN
+        shell: bash
+  
+      - name: Install GitHub CLI based on OS
+        run: |
+          # Detect the OS distribution
+          if [ -f /etc/os-release ]; then
+            . /etc/os-release
+            OS=$ID
+          else
+            OS=$(uname -s)
+          fi
+  
+          # Install GitHub CLI based on OS
+          if [ "$OS" == "ubuntu" ] || [ "$OS" == "debian" ]; then
+            echo "Installing GitHub CLI on Ubuntu/Debian..."
+            sudo mkdir -p -m 755 /etc/apt/keyrings
+            wget -qO- https://cli.github.com/packages/githubcli-archive-keyring.gpg | sudo tee /etc/apt/keyrings/githubcli-archive-keyring.gpg > /dev/null
+            sudo chmod go+r /etc/apt/keyrings/githubcli-archive-keyring.gpg
+            echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null
+            sudo apt-get update
+            sudo apt-get install -y gh
+          elif [ "$OS" == "centos" ] || [ "$OS" == "rhel" ] || [ "$OS" == "fedora" ]; then
+            echo "Installing GitHub CLI on CentOS/RHEL/Fedora..."
+            sudo yum-config-manager --add-repo https://cli.github.com/packages/rpm/gh-cli.repo
+            sudo yum install -y gh || true
+          else
+            echo "Unsupported OS: $OS"
+            exit 1
+          fi
+        shell: bash
+  
+      - name: Find or Create Approval Issue
+        id: find_or_create_issue
+        run: |
+          ISSUE_TITLE="Rebase Approval for Branches"
+          REPO_OWNER=$(echo $GITHUB_REPOSITORY | cut -d'/' -f1)
+          REPO_NAME=$(echo $GITHUB_REPOSITORY | cut -d'/' -f2)
+          existing_issue=$(gh issue list --repo "$REPO_OWNER/$REPO_NAME" --search "$ISSUE_TITLE" --json number --jq '.[0].number')
+          if [ -z "$existing_issue" ]; then
+            ISSUE_BODY="This issue contains the test results for the upstream sync, develop PR, and release testing branches. Comment 'proceed with rebase' to approve. Close when maintenance is complete or there will be problems on the next run."
+            created_issue=$(gh issue create --title "$ISSUE_TITLE" --body "$ISSUE_BODY" --repo "$REPO_OWNER/$REPO_NAME")
+            issue_number=$(echo "$created_issue" | grep -oP 'https://github\.com/.+?/issues/\K[0-9]+')
+            echo "issue_number=$issue_number" >> $GITHUB_ENV
+          else
+            echo "issue_number=$existing_issue" >> $GITHUB_ENV
+          fi
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ inputs.github_token }}
+  
+      - name: Check for Comment Approval
+        id: check_comment
+        run: |
+          REPO_OWNER=$(echo $GITHUB_REPOSITORY | cut -d'/' -f1)
+          REPO_NAME=$(echo $GITHUB_REPOSITORY | cut -d'/' -f2)
+          comments=$(gh issue view ${{ env.issue_number }} --repo "$REPO_OWNER/$REPO_NAME" --json comments)
+          
+          # Initialize rebase approval flag
+          rebase_approved=false
+          
+          # Loop through each comment
+          for row in $(echo "${comments}" | jq -r '.comments[] | @base64'); do
+              _jq() {
+                  echo ${row} | base64 --decode | jq -r ${1}
+              }
+      
+              username=$(_jq '.author.login')
+              comment_body=$(_jq '.body')
+              
+              # Get the user's permissions for the repository
+              permission=$(gh api "repos/$REPO_OWNER/$REPO_NAME/collaborators/$username/permission" --jq '.permission')
+      
+              echo "User: $username"
+              echo "Permission: $permission"
+              echo "Comment: $comment_body"
+      
+              # Check if the user has sufficient permissions and if their comment approves the rebase
+              if [[ "$permission" == "admin" || "$permission" == "maintain" || "$permission" == "push" ]]; then
+                  if echo "$comment_body" | grep -q 'proceed with rebase'; then
+                      rebase_approved=true
+                      break
+                  fi
+              fi
+          done
+          
+          # Set the rebase approval status in the environment
+          if [ "$rebase_approved" = true ]; then
+            echo "rebase_approved=true" >> $GITHUB_ENV
+          else
+            echo "rebase_approved=false" >> $GITHUB_ENV
+          fi
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ inputs.github_token }}
+  
+  runs:
+    using: "composite"
+    needs: setup
+    steps:
+  
+      - name: Checkout and update downstream main
+        run: |
+          git checkout ${{ env.DOWNSTREAM_MAIN }} # || git checkout -b ${{ env.DOWNSTREAM_MAIN }} upstream/${{ env.UPSTREAM_MAIN }}
+          git pull origin ${{ env.DOWNSTREAM_MAIN }}
+          echo "BRANCH_NAME=${DOWNSTREAM_MAIN}" >> $GITHUB_ENV
+          git diff origin/${{ env.DOWNSTREAM_MAIN }}..upstream/${{ env.UPSTREAM_MAIN }} > sync_diff.txt
+        shell: bash
+  
+      - name: Rebase upstream main into downstream main
+        run: |
+          git status
+          git rebase upstream/${{ env.UPSTREAM_MAIN }} || true
+          #git checkout -b ${{ inputs.pr_branch_prefix }}-sync-test-$(date +%Y%m%d)
+          #git push origin ${{ inputs.pr_branch_prefix }}-sync-test-$(date +%Y%m%d)
+        shell: bash
+  
+      - name: Push rebased downstream main #TODO push if comment pass 
+        #if: env.merge_approved == 'true' #approval is for all 3 steps so results on same issue  
+        if: env.rebase_approved == 'true'
+        run: |
+          git push origin ${{ env.DOWNSTREAM_MAIN }} --force
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ inputs.github_token }}
+  
+      - name: Run Docker Container for Requirements
+        run: |
+          # Create the script with all necessary commands
+          cat << 'EOF' > run_in_container.sh
+          #!/bin/bash
+          ${{ inputs.requirements_command }}
+          EOF
+          docker cp run_in_container.sh $CONTAINER_ID:/myworkspace/
+          # Execute the script inside Docker
+          docker exec my_container bash -c "cd /myworkspace && git config --global --add safe.directory /myworkspace"
+          docker exec my_container bash -c "cd /myworkspace && chmod +x run_in_container.sh && ./run_in_container.sh"
+          rm -rf run_in_container.sh
+          #docker exec my_container bash "ls && pwd"
+        shell: bash
+  
+      
+      - name: Run Docker Container for Unit Tests
+        if: env.rebase_approved == 'false'
+        run: |
+          echo "Running unit tests inside Docker..."
+          #echo "" > ${{ env.EXTERNAL_DIR }}/UNIT_TEST_RESULTS.txt
+          echo "${{ env.CONTAINER_ID }}"
+          docker ps -a 
+          #bash ${{ env.EXTERNAL_DIR }}/run_docker.sh "cd /myworkspace && ${{ inputs.unit_test_command }} 2>&1 | tee /myworkspace/1_UNIT_TEST_RESULTS.txt" || true
+          #bash ${{ env.EXTERNAL_DIR }}/run_docker.sh -c "ls && cd /myworkspace && pytest -v 2>&1 | tee UNIT_TEST_RESULTS.txt"
+          echo "Before"
+          docker exec my_container bash -c "cd /myworkspace; ${{ inputs.unit_test_command }} 2>&1 | tee /myworkspace/1_UNIT_TEST_RESULTS.txt" 
+          echo "After" 
+          #|| true
+          #docker exec my_container bash -c 'cd /myworkspace && ls' 
+          
+          echo "Unit Test Results: $(cat 1_UNIT_TEST_RESULTS.txt)"
+          #echo "UNIT_TEST_RESULTS=$(cat UNIT_TEST_RESULTS.txt)" >> $GITHUB_ENV
+        shell: bash
+  
+      - name: Run Docker Container for Performance Tests
+        if: env.rebase_approved == 'false'
+        run: |
+          echo "Running performance tests inside Docker..."
+          #ERFORMANCE_TEST_RESULTS=$(bash ${{ env.EXTERNAL_DIR }}/run_docker.sh "cd /myworkspace && ${{ inputs.performance_test_command }} 2>&1") || true
+          docker exec my_container bash -c "cd /myworkspace; ${{ inputs.performance_test_command }} 2>&1 | tee /myworkspace/1_PERF_TEST_RESULTS.txt" 
+          echo "Performance Test Results: $(cat 1_PERF_TEST_RESULTS.txt)"
+          #echo "PERFORMANCE_TEST_RESULTS=$PERFORMANCE_TEST_RESULTS" >> $GITHUB_ENV
+        shell: bash
+  
+      ##- name: Create Issue with test results for upstream sync
+      ##  run: |
+      ##    UNIT_TEST_COMMENT="### Unit Test Results\n\`\`\`\n${UNIT_TEST_RESULTS}\n\`\`\`"
+      ##    PERFORMANCE_TEST_COMMENT="### Performance Test Results\n\`\`\`\n${PERFORMANCE_TEST_RESULTS}\n\`\`\`"
+      ##    ISSUE_BODY="${UNIT_TEST_COMMENT}\n\n${PERFORMANCE_TEST_COMMENT}"
+      ##    REPO_OWNER=$(echo $GITHUB_REPOSITORY | cut -d'/' -f1)
+      ##    REPO_NAME=$(echo $GITHUB_REPOSITORY | cut -d'/' -f2)
+      ##    echo "repo owner ${REPO_OWNER}"
+      ##    echo "repo name ${REPO_NAME}"
+      ##    gh issue create --repo "$REPO_OWNER/$REPO_NAME" --title "Test Results for sync branch ${{ env.DOWNSTREAM_MAIN }}" --body "$ISSUE_BODY"
+      ##  shell: bash
+      ##  env:
+      ##    GITHUB_TOKEN: ${{ inputs.github_token }}
+      ##    UNIT_TEST_RESULTS: ${{ env.UNIT_TEST_RESULTS }}
+      ##    PERFORMANCE_TEST_RESULTS: ${{ env.PERFORMANCE_TEST_RESULTS }}
+  
+      - name: Upload diff file as artifact test 1
+        uses: actions/upload-artifact@v3
+        with:
+          name: git-diff-file-test-1
+          path: sync_diff.txt
+  
+      - name: Upload ut file as artifact test 1 
+        uses: actions/upload-artifact@v3
+        with:
+          name: git-ut-file-test-1
+          path: 1_UNIT_TEST_RESULTS.txt
+  
+      - name: Upload perf file as artifact test 1 
+        uses: actions/upload-artifact@v3
+        with:
+          name: git-perf-file-test-1
+          path: 1_PERF_TEST_RESULTS.txt
 
-    - name: Install GitHub CLI based on OS
-      run: |
-        # Detect the OS distribution
-        if [ -f /etc/os-release ]; then
-          . /etc/os-release
-          OS=$ID
-        else
-          OS=$(uname -s)
-        fi
-
-        # Install GitHub CLI based on OS
-        if [ "$OS" == "ubuntu" ] || [ "$OS" == "debian" ]; then
-          echo "Installing GitHub CLI on Ubuntu/Debian..."
-          sudo mkdir -p -m 755 /etc/apt/keyrings
-          wget -qO- https://cli.github.com/packages/githubcli-archive-keyring.gpg | sudo tee /etc/apt/keyrings/githubcli-archive-keyring.gpg > /dev/null
-          sudo chmod go+r /etc/apt/keyrings/githubcli-archive-keyring.gpg
-          echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null
-          sudo apt-get update
-          sudo apt-get install -y gh
-        elif [ "$OS" == "centos" ] || [ "$OS" == "rhel" ] || [ "$OS" == "fedora" ]; then
-          echo "Installing GitHub CLI on CentOS/RHEL/Fedora..."
-          sudo yum-config-manager --add-repo https://cli.github.com/packages/rpm/gh-cli.repo
-          sudo yum install -y gh || true
-        else
-          echo "Unsupported OS: $OS"
-          exit 1
-        fi
-      shell: bash
-
-    - name: Find or Create Approval Issue
-      id: find_or_create_issue
-      run: |
-        ISSUE_TITLE="Rebase Approval for Branches"
-        REPO_OWNER=$(echo $GITHUB_REPOSITORY | cut -d'/' -f1)
-        REPO_NAME=$(echo $GITHUB_REPOSITORY | cut -d'/' -f2)
-        existing_issue=$(gh issue list --repo "$REPO_OWNER/$REPO_NAME" --search "$ISSUE_TITLE" --json number --jq '.[0].number')
-        if [ -z "$existing_issue" ]; then
-          ISSUE_BODY="This issue contains the test results for the upstream sync, develop PR, and release testing branches. Comment 'proceed with rebase' to approve. Close when maintenance is complete or there will be problems on the next run."
-          created_issue=$(gh issue create --title "$ISSUE_TITLE" --body "$ISSUE_BODY" --repo "$REPO_OWNER/$REPO_NAME")
-          issue_number=$(echo "$created_issue" | grep -oP 'https://github\.com/.+?/issues/\K[0-9]+')
-          echo "issue_number=$issue_number" >> $GITHUB_ENV
-        else
-          echo "issue_number=$existing_issue" >> $GITHUB_ENV
-        fi
-      shell: bash
-      env:
-        GITHUB_TOKEN: ${{ inputs.github_token }}
-
-    - name: Check for Comment Approval
-      id: check_comment
-      run: |
-        REPO_OWNER=$(echo $GITHUB_REPOSITORY | cut -d'/' -f1)
-        REPO_NAME=$(echo $GITHUB_REPOSITORY | cut -d'/' -f2)
-        comments=$(gh issue view ${{ env.issue_number }} --repo "$REPO_OWNER/$REPO_NAME" --json comments)
-        
-        # Initialize rebase approval flag
-        rebase_approved=false
-        
-        # Loop through each comment
-        for row in $(echo "${comments}" | jq -r '.comments[] | @base64'); do
-            _jq() {
-                echo ${row} | base64 --decode | jq -r ${1}
-            }
-    
-            username=$(_jq '.author.login')
-            comment_body=$(_jq '.body')
-            
-            # Get the user's permissions for the repository
-            permission=$(gh api "repos/$REPO_OWNER/$REPO_NAME/collaborators/$username/permission" --jq '.permission')
-    
-            echo "User: $username"
-            echo "Permission: $permission"
-            echo "Comment: $comment_body"
-    
-            # Check if the user has sufficient permissions and if their comment approves the rebase
-            if [[ "$permission" == "admin" || "$permission" == "maintain" || "$permission" == "push" ]]; then
-                if echo "$comment_body" | grep -q 'proceed with rebase'; then
-                    rebase_approved=true
-                    break
-                fi
-            fi
-        done
-        
-        # Set the rebase approval status in the environment
-        if [ "$rebase_approved" = true ]; then
-          echo "rebase_approved=true" >> $GITHUB_ENV
-        else
-          echo "rebase_approved=false" >> $GITHUB_ENV
-        fi
-      shell: bash
-      env:
-        GITHUB_TOKEN: ${{ inputs.github_token }}
-
-
-    - name: Checkout and update downstream main
-      run: |
-        git checkout ${{ env.DOWNSTREAM_MAIN }} # || git checkout -b ${{ env.DOWNSTREAM_MAIN }} upstream/${{ env.UPSTREAM_MAIN }}
-        git pull origin ${{ env.DOWNSTREAM_MAIN }}
-        echo "BRANCH_NAME=${DOWNSTREAM_MAIN}" >> $GITHUB_ENV
-        git diff origin/${{ env.DOWNSTREAM_MAIN }}..upstream/${{ env.UPSTREAM_MAIN }} > sync_diff.txt
-      shell: bash
-
-    - name: Rebase upstream main into downstream main
-      run: |
-        git status
-        git rebase upstream/${{ env.UPSTREAM_MAIN }} || true
-        #git checkout -b ${{ inputs.pr_branch_prefix }}-sync-test-$(date +%Y%m%d)
-        #git push origin ${{ inputs.pr_branch_prefix }}-sync-test-$(date +%Y%m%d)
-      shell: bash
-
-    - name: Push rebased downstream main #TODO push if comment pass 
-      #if: env.merge_approved == 'true' #approval is for all 3 steps so results on same issue  
-      if: env.rebase_approved == 'true'
-      run: |
-        git push origin ${{ env.DOWNSTREAM_MAIN }} --force
-      shell: bash
-      env:
-        GITHUB_TOKEN: ${{ inputs.github_token }}
-
-    - name: Run Docker Container for Requirements
-      run: |
-        # Create the script with all necessary commands
-        cat << 'EOF' > run_in_container.sh
-        #!/bin/bash
-        ${{ inputs.requirements_command }}
-        EOF
-        docker cp run_in_container.sh $CONTAINER_ID:/myworkspace/
-        # Execute the script inside Docker
-        docker exec my_container bash -c "cd /myworkspace && git config --global --add safe.directory /myworkspace"
-        docker exec my_container bash -c "cd /myworkspace && chmod +x run_in_container.sh && ./run_in_container.sh"
-        rm -rf run_in_container.sh
-        #docker exec my_container bash "ls && pwd"
-      shell: bash
-
-    
-    - name: Run Docker Container for Unit Tests
-      if: env.rebase_approved == 'false'
-      run: |
-        echo "Running unit tests inside Docker..."
-        #echo "" > ${{ env.EXTERNAL_DIR }}/UNIT_TEST_RESULTS.txt
-        echo "${{ env.CONTAINER_ID }}"
-        docker ps -a 
-        #bash ${{ env.EXTERNAL_DIR }}/run_docker.sh "cd /myworkspace && ${{ inputs.unit_test_command }} 2>&1 | tee /myworkspace/1_UNIT_TEST_RESULTS.txt" || true
-        #bash ${{ env.EXTERNAL_DIR }}/run_docker.sh -c "ls && cd /myworkspace && pytest -v 2>&1 | tee UNIT_TEST_RESULTS.txt"
-        echo "Before"
-        docker exec my_container bash -c "cd /myworkspace; ${{ inputs.unit_test_command }} 2>&1 | tee /myworkspace/1_UNIT_TEST_RESULTS.txt" 
-        echo "After" 
-        #|| true
-        #docker exec my_container bash -c 'cd /myworkspace && ls' 
-        
-        echo "Unit Test Results: $(cat 1_UNIT_TEST_RESULTS.txt)"
-        #echo "UNIT_TEST_RESULTS=$(cat UNIT_TEST_RESULTS.txt)" >> $GITHUB_ENV
-      shell: bash
-
-    - name: Run Docker Container for Performance Tests
-      if: env.rebase_approved == 'false'
-      run: |
-        echo "Running performance tests inside Docker..."
-        #ERFORMANCE_TEST_RESULTS=$(bash ${{ env.EXTERNAL_DIR }}/run_docker.sh "cd /myworkspace && ${{ inputs.performance_test_command }} 2>&1") || true
-        docker exec my_container bash -c "cd /myworkspace; ${{ inputs.performance_test_command }} 2>&1 | tee /myworkspace/1_PERF_TEST_RESULTS.txt" 
-        echo "Performance Test Results: $(cat 1_PERF_TEST_RESULTS.txt)"
-        #echo "PERFORMANCE_TEST_RESULTS=$PERFORMANCE_TEST_RESULTS" >> $GITHUB_ENV
-      shell: bash
-
-    ##- name: Create Issue with test results for upstream sync
-    ##  run: |
-    ##    UNIT_TEST_COMMENT="### Unit Test Results\n\`\`\`\n${UNIT_TEST_RESULTS}\n\`\`\`"
-    ##    PERFORMANCE_TEST_COMMENT="### Performance Test Results\n\`\`\`\n${PERFORMANCE_TEST_RESULTS}\n\`\`\`"
-    ##    ISSUE_BODY="${UNIT_TEST_COMMENT}\n\n${PERFORMANCE_TEST_COMMENT}"
-    ##    REPO_OWNER=$(echo $GITHUB_REPOSITORY | cut -d'/' -f1)
-    ##    REPO_NAME=$(echo $GITHUB_REPOSITORY | cut -d'/' -f2)
-    ##    echo "repo owner ${REPO_OWNER}"
-    ##    echo "repo name ${REPO_NAME}"
-    ##    gh issue create --repo "$REPO_OWNER/$REPO_NAME" --title "Test Results for sync branch ${{ env.DOWNSTREAM_MAIN }}" --body "$ISSUE_BODY"
-    ##  shell: bash
-    ##  env:
-    ##    GITHUB_TOKEN: ${{ inputs.github_token }}
-    ##    UNIT_TEST_RESULTS: ${{ env.UNIT_TEST_RESULTS }}
-    ##    PERFORMANCE_TEST_RESULTS: ${{ env.PERFORMANCE_TEST_RESULTS }}
-
-    - name: Upload diff file as artifact test 1
-      uses: actions/upload-artifact@v3
-      with:
-        name: git-diff-file-test-1
-        path: sync_diff.txt
-
-    - name: Upload ut file as artifact test 1 
-      uses: actions/upload-artifact@v3
-      with:
-        name: git-ut-file-test-1
-        path: 1_UNIT_TEST_RESULTS.txt
-
-    - name: Upload perf file as artifact test 1 
-      uses: actions/upload-artifact@v3
-      with:
-        name: git-perf-file-test-1
-        path: 1_PERF_TEST_RESULTS.txt
+develop:
+  using: "composite"
+  needs: sync
+  steps:        
 
     - name: Retrieve Artifact IDs
       id: get_artifacts
@@ -834,6 +858,11 @@ runs:
         name: git-perf-file-test-2
         path: 2_PERF_TEST_RESULTS.txt
 
+test:
+  using: "composite"
+  needs: develop
+  steps:
+
     - name: Append Test Results to Issue
       if: env.rebase_approved == 'false'
       run: |
@@ -969,6 +998,11 @@ runs:
       with:
         name: git-perf-file-test-3
         path: 3_PERF_TEST_RESULTS.txt
+
+final:
+  using: "composite"
+  needs: test
+  steps:  
 
     - name: Append Test Results to Issue
       if: env.rebase_approved == 'false'
