@@ -37,13 +37,16 @@ jobs:
   setup:
     using: "composite"
     outputs: #chek-prs is id: of step
-      pr-number: ${{ steps.check-prs.outputs.PR_NUMBER }}
-      upstream-main: ${{ steps.extract_branches.outputs.UPSTREAM_MAIN }}
-      upstream-release: ${{ steps.extract_branches.outputs.UPSTREAM_RELEASE }}
-      downstream-main: ${{ steps.extract_branches.outputs.DOWNSTREAM_MAIN }}
-      downstream-develop: ${{ steps.extract_branches.outputs.DOWNSTREAM_DEVELOP }}
-      downstream-testing: ${{ steps.extract_branches.outputs.DOWNSTREAM_TESTING }}
-      commits: ${{ steps.extract_branches.outputs.COMMITS }}
+      CONTAINER_ID: ${{ steps.start_docker_container.outputs.CONTAINER_ID }} 
+      #pr-number: ${{ steps.check-prs.outputs.PR_NUMBER }}
+      UPSTREAM_MAIN: ${{ steps.extract_branches.outputs.UPSTREAM_MAIN }}
+      UPSTREAM_RELEASE: ${{ steps.extract_branches.outputs.UPSTREAM_RELEASE }}
+      DOWNSTREAM_MAIN: ${{ steps.extract_branches.outputs.DOWNSTREAM_MAIN }}
+      DOWNSTREAM_DEVELOP: ${{ steps.extract_branches.outputs.DOWNSTREAM_DEVELOP }}
+      DOWNSTREAM_TESTING: ${{ steps.extract_branches.outputs.DOWNSTREAM_TESTING }}
+      COMMITS: ${{ steps.extract_branches.outputs.COMMITS }}
+      issue_number: ${{ steps.find_or_create_issue.outputs.issue_number }}
+      rebase_approved: ${{ steps.check_comment.outputs.rebase_approved }}
     steps:
     
       #- name: Check out code
@@ -109,6 +112,7 @@ jobs:
           
           # Save the container ID and external directory for future steps
           echo "CONTAINER_ID=$CONTAINER_ID" >> $GITHUB_ENV
+          echo "CONTAINER_ID=$CONTAINER_ID" >> $GITHUB_OUTPUT
           echo "EXTERNAL_DIR=$EXTERNAL_DIR" >> $GITHUB_ENV
         shell: bash
         
@@ -224,8 +228,10 @@ jobs:
             created_issue=$(gh issue create --title "$ISSUE_TITLE" --body "$ISSUE_BODY" --repo "$REPO_OWNER/$REPO_NAME")
             issue_number=$(echo "$created_issue" | grep -oP 'https://github\.com/.+?/issues/\K[0-9]+')
             echo "issue_number=$issue_number" >> $GITHUB_ENV
+            echo "issue_number=$issue_number" >> $GITHUB_OUTPUT
           else
             echo "issue_number=$existing_issue" >> $GITHUB_ENV
+            echo "issue_number=$existing_issue" >> $GITHUB_OUTPUT
           fi
         shell: bash
         env:
@@ -269,16 +275,34 @@ jobs:
           # Set the rebase approval status in the environment
           if [ "$rebase_approved" = true ]; then
             echo "rebase_approved=true" >> $GITHUB_ENV
+            echo "rebase_approved=true" >> $GITHUB_OUTPUT
           else
             echo "rebase_approved=false" >> $GITHUB_ENV
+            echo "rebase_approved=false" >> $GITHUB_OUTPUT
           fi
         shell: bash
         env:
           GITHUB_TOKEN: ${{ inputs.github_token }}
   
-  runs:
+  sync:
     using: "composite"
     needs: setup
+    outputs: #chek-prs is id: of step
+      pr-number: ${{ steps.check-prs.outputs.PR_NUMBER }}
+      upstream-main: ${{ steps.extract_branches.outputs.UPSTREAM_MAIN }}
+      upstream-release: ${{ steps.extract_branches.outputs.UPSTREAM_RELEASE }}
+    env:
+      #PR_NUMBER: ${{ needs.check-pr.outputs.pr-number }}
+      CONTAINER_ID: ${{ needs.start_docker_container.outputs.CONTAINER_ID }} 
+      #pr-number: ${{ needs.check-prs.outputs.PR_NUMBER }}
+      UPSTREAM_MAIN: ${{ needs.extract_branches.outputs.UPSTREAM_MAIN }}
+      UPSTREAM_RELEASE: ${{ needs.extract_branches.outputs.UPSTREAM_RELEASE }}
+      DOWNSTREAM_MAIN: ${{ needs.extract_branches.outputs.DOWNSTREAM_MAIN }}
+      DOWNSTREAM_DEVELOP: ${{ needs.extract_branches.outputs.DOWNSTREAM_DEVELOP }}
+      DOWNSTREAM_TESTING: ${{ needs.extract_branches.outputs.DOWNSTREAM_TESTING }}
+      COMMITS: ${{ needs.extract_branches.outputs.COMMITS }}
+      issue_number: ${{ needs.find_or_create_issue.outputs.issue_number }}
+      rebase_approved: ${{ needs.check_comment.outputs.rebase_approved }}
     steps:
   
       - name: Checkout and update downstream main
@@ -368,694 +392,726 @@ jobs:
       ##    PERFORMANCE_TEST_RESULTS: ${{ env.PERFORMANCE_TEST_RESULTS }}
   
       - name: Upload diff file as artifact test 1
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: git-diff-file-test-1
           path: sync_diff.txt
   
       - name: Upload ut file as artifact test 1 
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: git-ut-file-test-1
           path: 1_UNIT_TEST_RESULTS.txt
   
       - name: Upload perf file as artifact test 1 
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: git-perf-file-test-1
           path: 1_PERF_TEST_RESULTS.txt
 
-develop:
-  using: "composite"
-  needs: sync
-  steps:        
-
-    - name: Retrieve Artifact IDs
-      id: get_artifacts
-      run: |
-        run_id="${{ github.run_id }}"
-        repo="${{ github.repository }}"
-        echo "Repository: $repo"
-        echo "Run ID: $run_id"
-        # Fetch artifacts JSON
-        artifacts_json=$(gh api "repos/${repo}/actions/runs/${run_id}/artifacts")
-        echo "Artifacts JSON:"
-        echo "$artifacts_json"
-    
-        # List all artifact names for verification
-        echo "Artifact Names:"
-        echo "$artifacts_json" | jq -r '.artifacts[].name'
-    
-        # Extract artifact IDs based on names
-        git_diff_id=$(echo "$artifacts_json" | jq -r '.artifacts[] | select(.name=="git-diff-file-test-1") | .id')
-        git_ut_id=$(echo "$artifacts_json" | jq -r '.artifacts[] | select(.name=="git-ut-file-test-1") | .id')
-        git_perf_id=$(echo "$artifacts_json" | jq -r '.artifacts[] | select(.name=="git-perf-file-test-1") | .id')
-
-        # Debug: print the IDs
-        echo "git_diff_id: $git_diff_id"
-        echo "git_ut_id: $git_ut_id"
-        echo "git_perf_id: $git_perf_id"
-    
-        # Construct artifact URLs
-        git_diff_url="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts/${git_diff_id}"
-        git_ut_url="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts/${git_ut_id}"
-        git_perf_url="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts/${git_perf_id}"
-    
-        # Export URLs as environment variables
-        echo "GIT_DIFF_URL=$git_diff_url" >> $GITHUB_ENV
-        echo "GIT_UT_URL=$git_ut_url" >> $GITHUB_ENV
-        echo "GIT_PERF_URL=$git_perf_url" >> $GITHUB_ENV
-      shell: bash
-      env:
-        GITHUB_TOKEN: ${{ inputs.github_token }}
-
-
-    - name: Append Test Results to Issue
-      if: env.rebase_approved == 'false'
-      run: |
-        REPO_OWNER=$(echo $GITHUB_REPOSITORY | cut -d'/' -f1)
-        REPO_NAME=$(echo $GITHUB_REPOSITORY | cut -d'/' -f2)
-        DIFF_ARTIFACT_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts/git-diff-file-test-1"
-        COMPARE_URL="https://github.com/ROCm/transformers/compare/$DOWNSTREAM_TESTING...ROCm:transformers:tmp-${DOWNSTREAM_DEVELOP}-$(date +%Y%m%d)" 
-        DIFF_INFO="Git diff artifact URL for tmp-${DOWNSTREAM_DEVELOP}-$(date +%Y%m%d) vs ${DOWNSTREAM_DEVELOP}: $ARTIFACT_URL <br /> Compare URL on Github: $COMPARE_URL"
-        UT_ARTIFACT_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts/git-ut-file-test-1"
-        UNIT_TEST_INFO="### Unit Test Results for Testing Branch ${{ env.BRANCH_NAME }} <br /> \`\`\` <br /> $UT_ARTIFACT_URL <br /> \`\`\`"
-        UNIT_TEST_COMMENT="### Unit Test Results for develop ${{ env.BRANCH_NAME }} <br /> \`\`\` <br /> $(cat 1_UNIT_TEST_RESULTS.txt) <br /> \`\`\`"
-        PERF_ARTIFACT_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts/git-perf-file-test-1"
-        PERF_TEST_INFO="### Performance Test Results for ${{ env.BRANCH_NAME }} <br /> \`\`\` <br /> $PERF_ARTIFACT_URL <br /> \`\`\`"
-        PERFORMANCE_TEST_COMMENT="### Performance Test Results for ${{ env.BRANCH_NAME }} <br /> \`\`\` <br /> $(cat 1_PERF_TEST_RESULTS.txt) <br /> \`\`\`"
-
-        DIFF_INFO="Git diff artifact URL: [Download git-diff-file-test-1]($GIT_DIFF_URL)"
-        UT_INFO="Unit Test Results: [Download git-ut-file-test-1]($GIT_UT_URL)"
-        PERF_INFO="Performance Test Results: [Download git-perf-file-test-1]($GIT_PERF_URL)"
-        # Combine all parts into a single file
-        {
-          echo "$DIFF_INFO"
-          echo ""
-          echo "$UT_INFO"
-          echo ""
-          echo "$PERF_INFO"
-        } > comment_body.txt
-        # Use --body-file to pass the comment body
-        gh issue comment ${{ env.issue_number }} --body-file comment_body.txt --repo "$REPO_OWNER/$REPO_NAME"
-
-        #gh issue comment ${{ env.issue_number }} --body "$DIFF_INFO <br /> <br /> $UNIT_TEST_COMMENT <br /> <br /> $PERFORMANCE_TEST_COMMENT" --repo "$REPO_OWNER/$REPO_NAME"
-        rm -rf 1_UNIT_TEST_RESULTS.txt
-        rm -rf 1_PERF_TEST_RESULTS.txt
-        rm -rf sync_diff.txt
-        rm -rf comment_body.txt 
-        sudo rm -rf reports/
-      shell: bash
-      env:
-        GITHUB_TOKEN: ${{ inputs.github_token }}
-        UNIT_TEST_RESULTS: ${{ env.UNIT_TEST_RESULTS }}
-        PERFORMANCE_TEST_RESULTS: ${{ env.PERFORMANCE_TEST_RESULTS }}  
-        GIT_DIFF_URL: ${{ env.GIT_DIFF_URL }}
-        GIT_UT_URL: ${{ env.GIT_UT_URL }}
-        GIT_PERF_URL: ${{ env.GIT_PERF_URL }}
-
-
-    #rebase from main to develop 
-    #- name: Attempt to rebase downstream main into develop
-    #  run: |
-    #    git checkout $DOWNSTREAM_DEVELOP
-    #    git pull origin downstream_main
-#git checkout -b tmp-develop-merge
-    #    #git checkout -b tmp-${DOWNSTREAM_DEVELOP}-$(date +%Y%m%d)
-    #    git switch -c tmp-${DOWNSTREAM_DEVELOP}-$(date +%Y%m%d)
-    #    git rebase $DOWNSTREAM_MAIN || true
-    #    #upstream/$UPSTREAM_MAIN
-    #  shell: bash
-
-    ##- name: Checkout downstream main branch
-    ##  run: |
-    ##    rm -f UNIT_TEST_RESULTS.txt schedule.json
-    ##    git checkout -b tmp-${DOWNSTREAM_DEVELOP}-$(date +%Y%m%d) origin/$DOWNSTREAM_DEVELOP
-    ##    git rebase origin/$DOWNSTREAM_MAIN  || true
-    ##  shell: bash
-
-    - name: Checkout and rebase with branch removal
-      if: env.rebase_approved == 'false'
-      run: |
-        BRANCH_NAME=tmp-${DOWNSTREAM_DEVELOP}-$(date +%Y%m%d)
-        # Delete existing branch if it exists
-        git branch -D $BRANCH_NAME || true
-        # Create new branch from downstream develop
-        git checkout -b $BRANCH_NAME origin/${DOWNSTREAM_DEVELOP}
-        # Attempt to rebase onto downstream main
-        git rebase origin/${DOWNSTREAM_MAIN} || true
-        echo "BRANCH_NAME=${BRANCH_NAME}" >> $GITHUB_ENV
-        git diff origin/$BRANCH_NAME..origin/$DOWNSTREAM_DEVELOP > develop_diff.txt
-      shell: bash
-
-
-    #- name: Checkout downstream main branch
-    #  run: git checkout -b tmp-${DOWNSTREAM_DEVELOP}-$(date +%Y%m%d) origin/$DOWNSTREAM_MAIN
-    #  shell: bash
-
-    #- name: Rebase develop onto tmp-sync-branch
-    #  run: |
-    #    git checkout $DOWNSTREAM_DEVELOP
-    #    git rebase tmp-${DOWNSTREAM_DEVELOP}-$(date +%Y%m%d) || true
-    #  shell: bash
-
-    - name: Check for rebase conflicts
-      id: check_conflicts
-      run: |
-        #git ls-files -u
-        #if git ls-files -u | grep -q '^'; then
-        #  echo "Rebase conflicts detected."
-        #  echo "conflicts=true" >> $GITHUB_ENV
-        #else
-        #  echo "No rebase conflicts."
-        #  echo "conflicts=false" >> $GITHUB_ENV
-        #fi
-        if git status | grep -q "Unmerged paths"; then
-          echo "Rebase conflicts detected."
-          echo "conflicts=true" >> $GITHUB_ENV
-        else
-          echo "No rebase conflicts."
-          echo "conflicts=false" >> $GITHUB_ENV
-        fi
-      shell: bash
-
-    ##- name: Commit conflict markers
-    ##  if: env.conflicts == 'true'
-    ##  run: |
-    ##    git status
-    ##    git add . 
-    ##    #-u
-    ##    GIT_EDITOR=true git rebase --continue || true
-    ##    #git commit -m "Mark conflict markers for review"
-    ##  shell: bash
-
-    - name: Handle Rebase Conflicts
-      if: env.conflicts == 'true' && env.rebase_approved == 'false'
-      run: |
-        echo "Aborting rebase due to conflicts."
-        git rebase --abort
-        git merge origin/${DOWNSTREAM_MAIN} || true
-        git add -A
-        git commit -m "Merge downstream main into ${BRANCH_NAME} with conflicts"
-      shell: bash
-
-    #push the rebased branch to develop 
-    - name: Push rebased branch
-      if: env.rebase_approved == 'false'
-      run: |
-        #git checkout tmp-${DOWNSTREAM_DEVELOP}-$(date +%Y%m%d)
-        git push origin tmp-${DOWNSTREAM_DEVELOP}-$(date +%Y%m%d) --force
-      shell: bash
-      env:
-        GITHUB_TOKEN: ${{ inputs.github_token }}
-
-    ##- name: Create Pull Request for downstream develop sync
-    ##  id: create_pr
-    ##  if: env.rebase_approved == 'false'
-    ##  run: |
-    ##    REPO_OWNER=$(echo $GITHUB_REPOSITORY | cut -d'/' -f1)
-    ##    REPO_NAME=$(echo $GITHUB_REPOSITORY | cut -d'/' -f2)
-    ##    PR_URL=$(gh pr create --repo "$REPO_OWNER/$REPO_NAME" --title "Automated PR: Downstream develop rebase new changes" --body "This PR was created automatically by the Fork Maintenance System to sync changes from the downstream main into downstream develop." --base ${DOWNSTREAM_DEVELOP} --head $REPO_OWNER:tmp-${DOWNSTREAM_DEVELOP}-$(date +%Y%m%d))
-    ##    PR_NUMBER=$(echo $PR_URL | awk -F '/' '{print $NF}')
-    ##    echo "PR_URL=$PR_URL" >> $GITHUB_ENV
-    ##    echo "PR_NUMBER=$PR_NUMBER" >> $GITHUB_ENV
-    ##  env:
-    ##    GITHUB_TOKEN: ${{ inputs.github_token }}
-    ##  shell: bash
-
-    - name: Check for changes and create PR if necessary
-      id: create_pr
-      if: env.rebase_approved == 'false'
-      run: |
-        git fetch origin
-        # Compare the current branch with the downstream develop
-        if git diff --quiet origin/${DOWNSTREAM_DEVELOP}..HEAD; then
-          echo "No changes detected after rebase. Skipping PR creation."
-          echo "pr_merged=true" >> $GITHUB_ENV
-        else
+  develop:
+    using: "composite"
+    needs: sync
+    outputs: #chek-prs is id: of step
+      pr-number: ${{ steps.check-prs.outputs.PR_NUMBER }}
+      upstream-main: ${{ steps.extract_branches.outputs.UPSTREAM_MAIN }}
+      upstream-release: ${{ steps.extract_branches.outputs.UPSTREAM_RELEASE }}
+    env:
+      #PR_NUMBER: ${{ needs.check-pr.outputs.pr-number }}
+      CONTAINER_ID: ${{ needs.start_docker_container.outputs.CONTAINER_ID }} 
+      #pr-number: ${{ needs.check-prs.outputs.PR_NUMBER }}
+      UPSTREAM_MAIN: ${{ needs.extract_branches.outputs.UPSTREAM_MAIN }}
+      UPSTREAM_RELEASE: ${{ needs.extract_branches.outputs.UPSTREAM_RELEASE }}
+      DOWNSTREAM_MAIN: ${{ needs.extract_branches.outputs.DOWNSTREAM_MAIN }}
+      DOWNSTREAM_DEVELOP: ${{ needs.extract_branches.outputs.DOWNSTREAM_DEVELOP }}
+      DOWNSTREAM_TESTING: ${{ needs.extract_branches.outputs.DOWNSTREAM_TESTING }}
+      COMMITS: ${{ needs.extract_branches.outputs.COMMITS }}
+      issue_number: ${{ needs.find_or_create_issue.outputs.issue_number }}
+      rebase_approved: ${{ needs.check_comment.outputs.rebase_approved }}
+    steps:        
+  
+      - name: Retrieve Artifact IDs
+        id: get_artifacts
+        run: |
+          run_id="${{ github.run_id }}"
+          repo="${{ github.repository }}"
+          echo "Repository: $repo"
+          echo "Run ID: $run_id"
+          # Fetch artifacts JSON
+          artifacts_json=$(gh api "repos/${repo}/actions/runs/${run_id}/artifacts")
+          echo "Artifacts JSON:"
+          echo "$artifacts_json"
+      
+          # List all artifact names for verification
+          echo "Artifact Names:"
+          echo "$artifacts_json" | jq -r '.artifacts[].name'
+      
+          # Extract artifact IDs based on names
+          git_diff_id=$(echo "$artifacts_json" | jq -r '.artifacts[] | select(.name=="git-diff-file-test-1") | .id')
+          git_ut_id=$(echo "$artifacts_json" | jq -r '.artifacts[] | select(.name=="git-ut-file-test-1") | .id')
+          git_perf_id=$(echo "$artifacts_json" | jq -r '.artifacts[] | select(.name=="git-perf-file-test-1") | .id')
+  
+          # Debug: print the IDs
+          echo "git_diff_id: $git_diff_id"
+          echo "git_ut_id: $git_ut_id"
+          echo "git_perf_id: $git_perf_id"
+      
+          # Construct artifact URLs
+          git_diff_url="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts/${git_diff_id}"
+          git_ut_url="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts/${git_ut_id}"
+          git_perf_url="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts/${git_perf_id}"
+      
+          # Export URLs as environment variables
+          echo "GIT_DIFF_URL=$git_diff_url" >> $GITHUB_ENV
+          echo "GIT_UT_URL=$git_ut_url" >> $GITHUB_ENV
+          echo "GIT_PERF_URL=$git_perf_url" >> $GITHUB_ENV
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ inputs.github_token }}
+  
+  
+      - name: Append Test Results to Issue
+        if: env.rebase_approved == 'false'
+        run: |
           REPO_OWNER=$(echo $GITHUB_REPOSITORY | cut -d'/' -f1)
           REPO_NAME=$(echo $GITHUB_REPOSITORY | cut -d'/' -f2)
-          PR_URL=$(gh pr create --repo "$REPO_OWNER/$REPO_NAME" --title "Automated PR: Downstream develop rebase new changes" --body "This PR was created automatically by the Fork Maintenance System to sync changes from the downstream main into downstream develop." --base ${DOWNSTREAM_DEVELOP} --head $REPO_OWNER:tmp-${DOWNSTREAM_DEVELOP}-$(date +%Y%m%d))
-          PR_NUMBER=$(echo $PR_URL | awk -F '/' '{print $NF}')
-          echo "PR_URL=$PR_URL" >> $GITHUB_ENV
-          echo "PR_NUMBER=$PR_NUMBER" >> $GITHUB_ENV
-          echo "pr_merged=false" >> $GITHUB_ENV
-          #PR_NUMBER=$(gh pr list --repo "${{ github.repository }}" --state merged --search "Sync downstream develop with downstream main" --json number --jq '.[0].number')
-          #if [ -z "$PR_NUMBER" ]; then
-          #  echo "PR not merged yet."
-          #  echo "pr_merged=false" >> $GITHUB_ENV
+          DIFF_ARTIFACT_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts/git-diff-file-test-1"
+          COMPARE_URL="https://github.com/ROCm/transformers/compare/$DOWNSTREAM_TESTING...ROCm:transformers:tmp-${DOWNSTREAM_DEVELOP}-$(date +%Y%m%d)" 
+          DIFF_INFO="Git diff artifact URL for tmp-${DOWNSTREAM_DEVELOP}-$(date +%Y%m%d) vs ${DOWNSTREAM_DEVELOP}: $ARTIFACT_URL <br /> Compare URL on Github: $COMPARE_URL"
+          UT_ARTIFACT_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts/git-ut-file-test-1"
+          UNIT_TEST_INFO="### Unit Test Results for Testing Branch ${{ env.BRANCH_NAME }} <br /> \`\`\` <br /> $UT_ARTIFACT_URL <br /> \`\`\`"
+          UNIT_TEST_COMMENT="### Unit Test Results for develop ${{ env.BRANCH_NAME }} <br /> \`\`\` <br /> $(cat 1_UNIT_TEST_RESULTS.txt) <br /> \`\`\`"
+          PERF_ARTIFACT_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts/git-perf-file-test-1"
+          PERF_TEST_INFO="### Performance Test Results for ${{ env.BRANCH_NAME }} <br /> \`\`\` <br /> $PERF_ARTIFACT_URL <br /> \`\`\`"
+          PERFORMANCE_TEST_COMMENT="### Performance Test Results for ${{ env.BRANCH_NAME }} <br /> \`\`\` <br /> $(cat 1_PERF_TEST_RESULTS.txt) <br /> \`\`\`"
+  
+          DIFF_INFO="Git diff artifact URL: [Download git-diff-file-test-1]($GIT_DIFF_URL)"
+          UT_INFO="Unit Test Results: [Download git-ut-file-test-1]($GIT_UT_URL)"
+          PERF_INFO="Performance Test Results: [Download git-perf-file-test-1]($GIT_PERF_URL)"
+          # Combine all parts into a single file
+          {
+            echo "$DIFF_INFO"
+            echo ""
+            echo "$UT_INFO"
+            echo ""
+            echo "$PERF_INFO"
+          } > comment_body.txt
+          # Use --body-file to pass the comment body
+          gh issue comment ${{ env.issue_number }} --body-file comment_body.txt --repo "$REPO_OWNER/$REPO_NAME"
+  
+          #gh issue comment ${{ env.issue_number }} --body "$DIFF_INFO <br /> <br /> $UNIT_TEST_COMMENT <br /> <br /> $PERFORMANCE_TEST_COMMENT" --repo "$REPO_OWNER/$REPO_NAME"
+          rm -rf 1_UNIT_TEST_RESULTS.txt
+          rm -rf 1_PERF_TEST_RESULTS.txt
+          rm -rf sync_diff.txt
+          rm -rf comment_body.txt 
+          sudo rm -rf reports/
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ inputs.github_token }}
+          UNIT_TEST_RESULTS: ${{ env.UNIT_TEST_RESULTS }}
+          PERFORMANCE_TEST_RESULTS: ${{ env.PERFORMANCE_TEST_RESULTS }}  
+          GIT_DIFF_URL: ${{ env.GIT_DIFF_URL }}
+          GIT_UT_URL: ${{ env.GIT_UT_URL }}
+          GIT_PERF_URL: ${{ env.GIT_PERF_URL }}
+  
+  
+      #rebase from main to develop 
+      #- name: Attempt to rebase downstream main into develop
+      #  run: |
+      #    git checkout $DOWNSTREAM_DEVELOP
+      #    git pull origin downstream_main
+  #git checkout -b tmp-develop-merge
+      #    #git checkout -b tmp-${DOWNSTREAM_DEVELOP}-$(date +%Y%m%d)
+      #    git switch -c tmp-${DOWNSTREAM_DEVELOP}-$(date +%Y%m%d)
+      #    git rebase $DOWNSTREAM_MAIN || true
+      #    #upstream/$UPSTREAM_MAIN
+      #  shell: bash
+  
+      ##- name: Checkout downstream main branch
+      ##  run: |
+      ##    rm -f UNIT_TEST_RESULTS.txt schedule.json
+      ##    git checkout -b tmp-${DOWNSTREAM_DEVELOP}-$(date +%Y%m%d) origin/$DOWNSTREAM_DEVELOP
+      ##    git rebase origin/$DOWNSTREAM_MAIN  || true
+      ##  shell: bash
+  
+      - name: Checkout and rebase with branch removal
+        if: env.rebase_approved == 'false'
+        run: |
+          BRANCH_NAME=tmp-${DOWNSTREAM_DEVELOP}-$(date +%Y%m%d)
+          # Delete existing branch if it exists
+          git branch -D $BRANCH_NAME || true
+          # Create new branch from downstream develop
+          git checkout -b $BRANCH_NAME origin/${DOWNSTREAM_DEVELOP}
+          # Attempt to rebase onto downstream main
+          git rebase origin/${DOWNSTREAM_MAIN} || true
+          echo "BRANCH_NAME=${BRANCH_NAME}" >> $GITHUB_ENV
+          git diff origin/$BRANCH_NAME..origin/$DOWNSTREAM_DEVELOP > develop_diff.txt
+        shell: bash
+  
+  
+      #- name: Checkout downstream main branch
+      #  run: git checkout -b tmp-${DOWNSTREAM_DEVELOP}-$(date +%Y%m%d) origin/$DOWNSTREAM_MAIN
+      #  shell: bash
+  
+      #- name: Rebase develop onto tmp-sync-branch
+      #  run: |
+      #    git checkout $DOWNSTREAM_DEVELOP
+      #    git rebase tmp-${DOWNSTREAM_DEVELOP}-$(date +%Y%m%d) || true
+      #  shell: bash
+  
+      - name: Check for rebase conflicts
+        id: check_conflicts
+        run: |
+          #git ls-files -u
+          #if git ls-files -u | grep -q '^'; then
+          #  echo "Rebase conflicts detected."
+          #  echo "conflicts=true" >> $GITHUB_ENV
           #else
-          #  echo "PR merged."
-          #  echo "pr_merged=true" >> $GITHUB_ENV
+          #  echo "No rebase conflicts."
+          #  echo "conflicts=false" >> $GITHUB_ENV
           #fi
-        fi
-      shell: bash
-      env:
-        GITHUB_TOKEN: ${{ inputs.github_token }}
-    
-    #- name: Wait for PR to be merged
-    #  if: env.pr_merged == 'false' && env.rebase_approved == 'true'
-    #  uses: alexeyzherdev/gh-pr-await-merge@v1
-    #  with:
-    #    pr_number: ${{ env.PR_NUMBER }}
-    #    repo: ${{ github.repository }}
-    #    token: ${{ inputs.github_token }}
-
-    - name: Wait for PR to be merged
-      if: env.pr_merged == 'false' && env.rebase_approved == 'false'
-      run: |
-        PR_NUMBER=${{ env.PR_NUMBER }}
-        MAX_WAIT_TIME=$((60 * 60 * 6))  # 6 hours in seconds
-        START_TIME=$(date +%s)
-        REPO_OWNER=$(echo $GITHUB_REPOSITORY | cut -d'/' -f1)
-        REPO_NAME=$(echo $GITHUB_REPOSITORY | cut -d'/' -f2)
-        while true; do
-          PR_STATE=$(gh pr view $PR_NUMBER --json state --jq '.state' --repo "$REPO_OWNER/$REPO_NAME")
-          echo "Current PR state: $PR_STATE"
-          if [ "$PR_STATE" = "MERGED" ]; then
-            echo "PR is merged."
-            #instead of wait we can test and post results to pr 
-            #fetch
-            git pull
-            #pip install 
-            docker exec my_container bash -c "cd /myworkspace; pip install -e ."
-            #ut 
-            echo "Running unit tests inside Docker..."
-            docker exec my_container bash -c "cd /myworkspace; ${{ inputs.unit_test_command }} 2>&1 | tee /myworkspace/UNIT_TEST_RESULTS.txt" 
-            echo "Unit Test Results: $(cat UNIT_TEST_RESULTS.txt)"
-            #perf
-            echo "Running performance tests inside Docker..."
-            docker exec my_container bash -c "cd /myworkspace; ${{ inputs.performance_test_command }} 2>&1 | tee /myworkspace/PERF_TEST_RESULTS.txt" 
-            echo "Performance Test Results: $(cat PERF_TEST_RESULTS.txt)"
-            #append to issue
-            UNIT_TEST_COMMENT="### Unit Test Results for Automated PR ${{ env.BRANCH_NAME }} <br /> <br /> $(cat UNIT_TEST_RESULTS.txt) <br /> "
-            PERFORMANCE_TEST_COMMENT="### Performance Test Results for Automated PR ${{ env.BRANCH_NAME }} <br /> <br /> $(cat PERF_TEST_RESULTS.txt) <br /> "
-            gh issue comment ${{ env.issue_number }} --body "$UNIT_TEST_COMMENT <br /> <br /> $PERFORMANCE_TEST_COMMENT" --repo "$REPO_OWNER/$REPO_NAME"
-            rm -rf UNIT_TEST_RESULTS.txt
-            rm -rf PERF_TEST_RESULTS.txt
-            sudo rm -rf reports/
-            break
-          elif [ "$PR_STATE" = "CLOSED" ]; then
-            echo "PR is closed without merging."
-            exit 1
+          if git status | grep -q "Unmerged paths"; then
+            echo "Rebase conflicts detected."
+            echo "conflicts=true" >> $GITHUB_ENV
           else
-            echo "PR is not merged yet. Waiting for 5 minutes..."
-            sleep 300  # Wait for 5 minutes
+            echo "No rebase conflicts."
+            echo "conflicts=false" >> $GITHUB_ENV
           fi
-          CURRENT_TIME=$(date +%s)
-          ELAPSED_TIME=$((CURRENT_TIME - START_TIME))
-          if [ "$ELAPSED_TIME" -ge "$MAX_WAIT_TIME" ]; then
-            echo "Maximum wait time exceeded. Exiting."
-            exit 1
+        shell: bash
+  
+      ##- name: Commit conflict markers
+      ##  if: env.conflicts == 'true'
+      ##  run: |
+      ##    git status
+      ##    git add . 
+      ##    #-u
+      ##    GIT_EDITOR=true git rebase --continue || true
+      ##    #git commit -m "Mark conflict markers for review"
+      ##  shell: bash
+  
+      - name: Handle Rebase Conflicts
+        if: env.conflicts == 'true' && env.rebase_approved == 'false'
+        run: |
+          echo "Aborting rebase due to conflicts."
+          git rebase --abort
+          git merge origin/${DOWNSTREAM_MAIN} || true
+          git add -A
+          git commit -m "Merge downstream main into ${BRANCH_NAME} with conflicts"
+        shell: bash
+  
+      #push the rebased branch to develop 
+      - name: Push rebased branch
+        if: env.rebase_approved == 'false'
+        run: |
+          #git checkout tmp-${DOWNSTREAM_DEVELOP}-$(date +%Y%m%d)
+          git push origin tmp-${DOWNSTREAM_DEVELOP}-$(date +%Y%m%d) --force
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ inputs.github_token }}
+  
+      ##- name: Create Pull Request for downstream develop sync
+      ##  id: create_pr
+      ##  if: env.rebase_approved == 'false'
+      ##  run: |
+      ##    REPO_OWNER=$(echo $GITHUB_REPOSITORY | cut -d'/' -f1)
+      ##    REPO_NAME=$(echo $GITHUB_REPOSITORY | cut -d'/' -f2)
+      ##    PR_URL=$(gh pr create --repo "$REPO_OWNER/$REPO_NAME" --title "Automated PR: Downstream develop rebase new changes" --body "This PR was created automatically by the Fork Maintenance System to sync changes from the downstream main into downstream develop." --base ${DOWNSTREAM_DEVELOP} --head $REPO_OWNER:tmp-${DOWNSTREAM_DEVELOP}-$(date +%Y%m%d))
+      ##    PR_NUMBER=$(echo $PR_URL | awk -F '/' '{print $NF}')
+      ##    echo "PR_URL=$PR_URL" >> $GITHUB_ENV
+      ##    echo "PR_NUMBER=$PR_NUMBER" >> $GITHUB_ENV
+      ##  env:
+      ##    GITHUB_TOKEN: ${{ inputs.github_token }}
+      ##  shell: bash
+  
+      - name: Check for changes and create PR if necessary
+        id: create_pr
+        if: env.rebase_approved == 'false'
+        run: |
+          git fetch origin
+          # Compare the current branch with the downstream develop
+          if git diff --quiet origin/${DOWNSTREAM_DEVELOP}..HEAD; then
+            echo "No changes detected after rebase. Skipping PR creation."
+            echo "pr_merged=true" >> $GITHUB_ENV
+          else
+            REPO_OWNER=$(echo $GITHUB_REPOSITORY | cut -d'/' -f1)
+            REPO_NAME=$(echo $GITHUB_REPOSITORY | cut -d'/' -f2)
+            PR_URL=$(gh pr create --repo "$REPO_OWNER/$REPO_NAME" --title "Automated PR: Downstream develop rebase new changes" --body "This PR was created automatically by the Fork Maintenance System to sync changes from the downstream main into downstream develop." --base ${DOWNSTREAM_DEVELOP} --head $REPO_OWNER:tmp-${DOWNSTREAM_DEVELOP}-$(date +%Y%m%d))
+            PR_NUMBER=$(echo $PR_URL | awk -F '/' '{print $NF}')
+            echo "PR_URL=$PR_URL" >> $GITHUB_ENV
+            echo "PR_NUMBER=$PR_NUMBER" >> $GITHUB_ENV
+            echo "pr_merged=false" >> $GITHUB_ENV
+            #PR_NUMBER=$(gh pr list --repo "${{ github.repository }}" --state merged --search "Sync downstream develop with downstream main" --json number --jq '.[0].number')
+            #if [ -z "$PR_NUMBER" ]; then
+            #  echo "PR not merged yet."
+            #  echo "pr_merged=false" >> $GITHUB_ENV
+            #else
+            #  echo "PR merged."
+            #  echo "pr_merged=true" >> $GITHUB_ENV
+            #fi
           fi
-        done
-        echo "pr_merged=true" >> $GITHUB_ENV
-      shell: bash
-      env:
-        GH_TOKEN: ${{ inputs.github_token }}
-    
-    - name: Rebase downstream_develop onto downstream_main
-      if: env.pr_merged == 'true' && env.rebase_approved == 'true'
-      run: |
-        # Checkout downstream_develop branch
-        git checkout ${DOWNSTREAM_DEVELOP}
-        git pull origin ${DOWNSTREAM_DEVELOP}
-    
-        # Rebase onto downstream_main
-        git rebase origin/${DOWNSTREAM_MAIN}
-    
-        # Push the rebased branch
-        git push origin ${DOWNSTREAM_DEVELOP} --force-with-lease
-      shell: bash
-      env:
-        GITHUB_TOKEN: ${{ inputs.github_token }}
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ inputs.github_token }}
+      
+      #- name: Wait for PR to be merged
+      #  if: env.pr_merged == 'false' && env.rebase_approved == 'true'
+      #  uses: alexeyzherdev/gh-pr-await-merge@v1
+      #  with:
+      #    pr_number: ${{ env.PR_NUMBER }}
+      #    repo: ${{ github.repository }}
+      #    token: ${{ inputs.github_token }}
+  
+      - name: Wait for PR to be merged
+        if: env.pr_merged == 'false' && env.rebase_approved == 'false'
+        run: |
+          PR_NUMBER=${{ env.PR_NUMBER }}
+          MAX_WAIT_TIME=$((60 * 60 * 6))  # 6 hours in seconds
+          START_TIME=$(date +%s)
+          REPO_OWNER=$(echo $GITHUB_REPOSITORY | cut -d'/' -f1)
+          REPO_NAME=$(echo $GITHUB_REPOSITORY | cut -d'/' -f2)
+          while true; do
+            PR_STATE=$(gh pr view $PR_NUMBER --json state --jq '.state' --repo "$REPO_OWNER/$REPO_NAME")
+            echo "Current PR state: $PR_STATE"
+            if [ "$PR_STATE" = "MERGED" ]; then
+              echo "PR is merged."
+              #instead of wait we can test and post results to pr 
+              #fetch
+              git pull
+              #pip install 
+              docker exec my_container bash -c "cd /myworkspace; pip install -e ."
+              #ut 
+              echo "Running unit tests inside Docker..."
+              docker exec my_container bash -c "cd /myworkspace; ${{ inputs.unit_test_command }} 2>&1 | tee /myworkspace/UNIT_TEST_RESULTS.txt" 
+              echo "Unit Test Results: $(cat UNIT_TEST_RESULTS.txt)"
+              #perf
+              echo "Running performance tests inside Docker..."
+              docker exec my_container bash -c "cd /myworkspace; ${{ inputs.performance_test_command }} 2>&1 | tee /myworkspace/PERF_TEST_RESULTS.txt" 
+              echo "Performance Test Results: $(cat PERF_TEST_RESULTS.txt)"
+              #append to issue
+              UNIT_TEST_COMMENT="### Unit Test Results for Automated PR ${{ env.BRANCH_NAME }} <br /> <br /> $(cat UNIT_TEST_RESULTS.txt) <br /> "
+              PERFORMANCE_TEST_COMMENT="### Performance Test Results for Automated PR ${{ env.BRANCH_NAME }} <br /> <br /> $(cat PERF_TEST_RESULTS.txt) <br /> "
+              gh issue comment ${{ env.issue_number }} --body "$UNIT_TEST_COMMENT <br /> <br /> $PERFORMANCE_TEST_COMMENT" --repo "$REPO_OWNER/$REPO_NAME"
+              rm -rf UNIT_TEST_RESULTS.txt
+              rm -rf PERF_TEST_RESULTS.txt
+              sudo rm -rf reports/
+              break
+            elif [ "$PR_STATE" = "CLOSED" ]; then
+              echo "PR is closed without merging."
+              exit 1
+            else
+              echo "PR is not merged yet. Waiting for 5 minutes..."
+              sleep 300  # Wait for 5 minutes
+            fi
+            CURRENT_TIME=$(date +%s)
+            ELAPSED_TIME=$((CURRENT_TIME - START_TIME))
+            if [ "$ELAPSED_TIME" -ge "$MAX_WAIT_TIME" ]; then
+              echo "Maximum wait time exceeded. Exiting."
+              exit 1
+            fi
+          done
+          echo "pr_merged=true" >> $GITHUB_ENV
+        shell: bash
+        env:
+          GH_TOKEN: ${{ inputs.github_token }}
+      
+      - name: Rebase downstream_develop onto downstream_main
+        if: env.pr_merged == 'true' && env.rebase_approved == 'true'
+        run: |
+          # Checkout downstream_develop branch
+          git checkout ${DOWNSTREAM_DEVELOP}
+          git pull origin ${DOWNSTREAM_DEVELOP}
+      
+          # Rebase onto downstream_main
+          git rebase origin/${DOWNSTREAM_MAIN}
+      
+          # Push the rebased branch
+          git push origin ${DOWNSTREAM_DEVELOP} --force-with-lease
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ inputs.github_token }}
+  
+      ###- name: Create suggestions for conflicts
+      ###  if: env.conflicts == 'true'
+      ###  run: |
+      ###    git diff --name-only --diff-filter=U | while read file; do
+      ###      # Split the file into ancestor, our-version, and their-version
+      ###      git show :1:"$file" > ancestor.txt || echo "" > ancestor.txt
+      ###      git show :2:"$file" > our-version.txt || echo "" > our-version.txt
+      ###      git show :3:"$file" > their-version.txt || echo "" > their-version.txt
+      ###      
+      ###      # Create conflict suggestions for each conflict in the file
+      ###      conflict_markers=$(grep -n '<<<<<<<' $file | cut -d: -f1)
+      ###      for marker in $conflict_markers; do
+      ###        LINE_NUMBER=$((marker+1))
+      ###        echo $marker
+      ###        diff3 -m our-version.txt ancestor.txt their-version.txt > conflict_$LINE_NUMBER.txt
+      ###        
+      ###        # Post suggestion for this conflict
+      ###        COMMENT_BODY="### Conflict detected in \`$file\` at line $LINE_NUMBER\n\`\`\`diff\n$(cat conflict_$LINE_NUMBER.txt)\n\`\`\`\nPlease resolve the conflict by keeping the necessary changes."
+      ###        
+      ###        curl -L \
+      ###          -X POST \
+      ###          -H "Accept: application/vnd.github+json" \
+      ###          -H "Authorization: Bearer ${{ inputs.github_token }}" \
+      ###          -H "X-GitHub-Api-Version: 2022-11-28" \
+      ###          https://api.github.com/repos/${{ github.repository_owner }}/$(basename ${{ github.repository }})/pulls/${{ env.PR_NUMBER }}/comments \
+      ###          -d "{\"body\":\"${COMMENT_BODY}\",\"commit_id\":\"${{ github.event.pull_request.head.sha }}\",\"path\":\"$file\",\"line\":$LINE_NUMBER,\"side\":\"RIGHT\"}"
+      ###      done
+      ###    done
+      ###  shell: bash
+  
+  
+      #- name: Install Reviewdog
+      #  if: env.conflicts == 'true'
+      #  run: |
+      #    curl -sfL https://raw.githubusercontent.com/reviewdog/reviewdog/master/install.sh | sh -s -- -b /usr/local/bin
+      #  shell: bash
+  
+      #- name: Create suggestions for conflicts
+      #  if: env.conflicts == 'true'
+      #  run: |
+      #    git diff --name-only --diff-filter=U | while read file; do
+      #      git show :1:"$file" > ancestor.txt
+      #      git show :2:"$file" > our-version.txt || echo "" > our-version.txt
+      #      git show :3:"$file" > their-version.txt || echo "" > their-version.txt
+      #      diff3 -m our-version.txt ancestor.txt their-version.txt > conflicts.txt
+      #      reviewdog -f=diff < conflicts.txt || true
+      #    done
+      #  shell: bash
+  
+      #- name: Create suggestions for conflicts
+      #  if: env.conflicts == 'true'
+      #  run: |
+      #    git diff --name-only --diff-filter=U | while read file; do
+      #      if git ls-files -u "$file" | grep -q ':1:'; then
+      #        git show :1:"$file" > ancestor.txt
+      #      else
+      #        echo "" > ancestor.txt
+      #      fi
+      #      if git ls-files -u "$file" | grep -q ':2:'; then
+      #        git show :2:"$file" > our-version.txt
+      #      else
+      #        echo "" > our-version.txt
+      #      fi
+      #      if git ls-files -u "$file" | grep -q ':3:'; then
+      #        git show :3:"$file" > their-version.txt
+      #      else
+      #        echo "" > their-version.txt
+      #      fi
+      #      diff3 -m our-version.txt ancestor.txt their-version.txt > conflicts.txt
+      #      reviewdog -f=diff < conflicts.txt || true
+      #    done
+      #  shell: bash
+  
+      #- name: Create Pull Request for upstream sync
+      #  run: |
+      #    REPO_OWNER=$(echo $GITHUB_REPOSITORY | cut -d'/' -f1)
+      #    REPO_NAME=$(echo $GITHUB_REPOSITORY | cut -d'/' -f2)
+      #    gh pr create --repo "$REPO_OWNER/$REPO_NAME" --title "Automated PR: Downstream develop rebase new changes" --body "This PR was created automatically by the Fork Maintenance System to sync changes from the downstream main into downstream develop." --base origin/${DOWNSTREAM_DEVELOP} --head tmp-${DOWNSTREAM_DEVELOP}-$(date +%Y%m%d)
+      #    #${{ inputs.pr_branch_prefix }}-sync-test-$(date +%Y%m%d) 
+      #    #upstream/${{ env.UPSTREAM_MAIN }}
+      #  env:
+      #    GITHUB_TOKEN: ${{ inputs.github_token }}
+      #  shell: bash
+  
+      
+      
+      #- name: Run reviewdog to suggest conflict resolutions
+      #  if: env.conflicts == 'true'
+      #  uses: reviewdog/action-suggester@v1
+      #  with:
+      #    github_token: ${{ inputs.github_token }}
+      #    tool_name: 'merge-conflict-suggester'
+      #    level: 'warning'
+      #    filter_mode: 'diff_context'
+      #    fail_on_error: 'false'
+      #    cleanup: 'true'
+  
+      #- name: Create Pull Request for Downstream develop
+      #  #if: env.conflicts == 'false'
+      #  uses: peter-evans/create-pull-request@v4
+      #  id: create_pr_develop
+      #  with:
+      #    token: ${{ inputs.github_token }}
+      #    base: ${{ inputs.downstream_develop_branch }}
+      #    branch: tmp-${DOWNSTREAM_DEVELOP}-$(date +%Y%m%d)
+      #    #head: tmp-${DOWNSTREAM_DEVELOP}-$(date +%Y%m%d)
+      #    title: "Automated PR: Rebase ${ UPSTREAM_MAIN } into ${ DOWNSTREAM_DEVELOP }"
+      #    body: "This PR was created automatically by the Fork Maintenance System to rebase changes from Downstream main into the develop branch."
+      #    draft: false
+  
+      - name: Run Docker Container for Install
+        run: |
+          docker exec my_container bash -c "cd /myworkspace; pip install -e ."
+        shell: bash
+  
+      #develop tests 
+      - name: Run Docker Container for Unit Tests
+        if: env.rebase_approved == 'false'
+        run: |
+          echo "Running unit tests inside Docker..."
+          #echo "" > ${{ env.EXTERNAL_DIR }}/UNIT_TEST_RESULTS.txt
+          #bash ${{ env.EXTERNAL_DIR }}/run_docker.sh "cd /myworkspace && ${{ inputs.unit_test_command }} 2>&1 | tee /myworkspace/UNIT_TEST_RESULTS.txt" || true
+          docker exec my_container bash -c "cd /myworkspace; ${{ inputs.unit_test_command }} 2>&1 | tee /myworkspace/2_UNIT_TEST_RESULTS.txt" 
+          echo "Unit Test Results: $(cat 2_UNIT_TEST_RESULTS.txt)"
+          #echo "UNIT_TEST_RESULTS=$(cat ${{ env.EXTERNAL_DIR }}/UNIT_TEST_RESULTS.txt)" >> $GITHUB_ENV
+        shell: bash
+  
+      - name: Run Docker Container for Performance Tests
+        if: env.rebase_approved == 'false'
+        run: |
+          echo "Running performance tests inside Docker..."
+          #PERFORMANCE_TEST_RESULTS=$(bash ${{ env.EXTERNAL_DIR }}/run_docker.sh "cd /myworkspace && ${{ inputs.performance_test_command }} 2>&1") || true.
+          docker exec my_container bash -c "cd /myworkspace; ${{ inputs.performance_test_command }} 2>&1 | tee /myworkspace/2_PERF_TEST_RESULTS.txt" 
+          echo "Performance Test Results: $(cat 2_PERF_TEST_RESULTS.txt)"
+          #echo "PERFORMANCE_TEST_RESULTS=$PERFORMANCE_TEST_RESULTS" >> $GITHUB_ENV
+        shell: bash
+  
+      ##- name: Comment test results on develop PR
+      ##  run: |
+      ##    UNIT_TEST_COMMENT="### Unit Test Results\n\`\`\`\n${UNIT_TEST_RESULTS}\n\`\`\`"
+      ##    PERFORMANCE_TEST_COMMENT="### Performance Test Results\n\`\`\`\n${PERFORMANCE_TEST_RESULTS}\n\`\`\`"
+      ##    #PR_URL_DEVELOP=$PR_URL    #(jq -r '.html_url' ${{ steps.create_pr_develop.outputs.pull_request }})
+      ##    echo "Commenting test results on develop PR..."
+      ##    gh pr comment $PR_URL -b "$UNIT_TEST_COMMENT\n\n$PERFORMANCE_TEST_COMMENT"
+      ##  shell: bash
+      ##  env:
+      ##    GITHUB_TOKEN: ${{ inputs.github_token }}
+      ##    UNIT_TEST_RESULTS: ${{ env.UNIT_TEST_RESULTS }}
+      ##    PERFORMANCE_TEST_RESULTS: ${{ env.PERFORMANCE_TEST_RESULTS }}
+  
+      - name: Upload diff file as artifact test 2 
+        uses: actions/upload-artifact@v4
+        with:
+          name: git-diff-file-test-2
+          path: develop_diff.txt
+  
+      - name: Upload ut file as artifact test 2 
+        uses: actions/upload-artifact@v4
+        with:
+          name: git-ut-file-test-2
+          path: 2_UNIT_TEST_RESULTS.txt
+  
+      - name: Upload perf file as artifact test 2 
+        uses: actions/upload-artifact@v4
+        with:
+          name: git-perf-file-test-2
+          path: 2_PERF_TEST_RESULTS.txt
 
-    ###- name: Create suggestions for conflicts
-    ###  if: env.conflicts == 'true'
-    ###  run: |
-    ###    git diff --name-only --diff-filter=U | while read file; do
-    ###      # Split the file into ancestor, our-version, and their-version
-    ###      git show :1:"$file" > ancestor.txt || echo "" > ancestor.txt
-    ###      git show :2:"$file" > our-version.txt || echo "" > our-version.txt
-    ###      git show :3:"$file" > their-version.txt || echo "" > their-version.txt
-    ###      
-    ###      # Create conflict suggestions for each conflict in the file
-    ###      conflict_markers=$(grep -n '<<<<<<<' $file | cut -d: -f1)
-    ###      for marker in $conflict_markers; do
-    ###        LINE_NUMBER=$((marker+1))
-    ###        echo $marker
-    ###        diff3 -m our-version.txt ancestor.txt their-version.txt > conflict_$LINE_NUMBER.txt
-    ###        
-    ###        # Post suggestion for this conflict
-    ###        COMMENT_BODY="### Conflict detected in \`$file\` at line $LINE_NUMBER\n\`\`\`diff\n$(cat conflict_$LINE_NUMBER.txt)\n\`\`\`\nPlease resolve the conflict by keeping the necessary changes."
-    ###        
-    ###        curl -L \
-    ###          -X POST \
-    ###          -H "Accept: application/vnd.github+json" \
-    ###          -H "Authorization: Bearer ${{ inputs.github_token }}" \
-    ###          -H "X-GitHub-Api-Version: 2022-11-28" \
-    ###          https://api.github.com/repos/${{ github.repository_owner }}/$(basename ${{ github.repository }})/pulls/${{ env.PR_NUMBER }}/comments \
-    ###          -d "{\"body\":\"${COMMENT_BODY}\",\"commit_id\":\"${{ github.event.pull_request.head.sha }}\",\"path\":\"$file\",\"line\":$LINE_NUMBER,\"side\":\"RIGHT\"}"
-    ###      done
-    ###    done
-    ###  shell: bash
-
-
-    #- name: Install Reviewdog
-    #  if: env.conflicts == 'true'
-    #  run: |
-    #    curl -sfL https://raw.githubusercontent.com/reviewdog/reviewdog/master/install.sh | sh -s -- -b /usr/local/bin
-    #  shell: bash
-
-    #- name: Create suggestions for conflicts
-    #  if: env.conflicts == 'true'
-    #  run: |
-    #    git diff --name-only --diff-filter=U | while read file; do
-    #      git show :1:"$file" > ancestor.txt
-    #      git show :2:"$file" > our-version.txt || echo "" > our-version.txt
-    #      git show :3:"$file" > their-version.txt || echo "" > their-version.txt
-    #      diff3 -m our-version.txt ancestor.txt their-version.txt > conflicts.txt
-    #      reviewdog -f=diff < conflicts.txt || true
-    #    done
-    #  shell: bash
-
-    #- name: Create suggestions for conflicts
-    #  if: env.conflicts == 'true'
-    #  run: |
-    #    git diff --name-only --diff-filter=U | while read file; do
-    #      if git ls-files -u "$file" | grep -q ':1:'; then
-    #        git show :1:"$file" > ancestor.txt
-    #      else
-    #        echo "" > ancestor.txt
-    #      fi
-    #      if git ls-files -u "$file" | grep -q ':2:'; then
-    #        git show :2:"$file" > our-version.txt
-    #      else
-    #        echo "" > our-version.txt
-    #      fi
-    #      if git ls-files -u "$file" | grep -q ':3:'; then
-    #        git show :3:"$file" > their-version.txt
-    #      else
-    #        echo "" > their-version.txt
-    #      fi
-    #      diff3 -m our-version.txt ancestor.txt their-version.txt > conflicts.txt
-    #      reviewdog -f=diff < conflicts.txt || true
-    #    done
-    #  shell: bash
-
-    #- name: Create Pull Request for upstream sync
-    #  run: |
-    #    REPO_OWNER=$(echo $GITHUB_REPOSITORY | cut -d'/' -f1)
-    #    REPO_NAME=$(echo $GITHUB_REPOSITORY | cut -d'/' -f2)
-    #    gh pr create --repo "$REPO_OWNER/$REPO_NAME" --title "Automated PR: Downstream develop rebase new changes" --body "This PR was created automatically by the Fork Maintenance System to sync changes from the downstream main into downstream develop." --base origin/${DOWNSTREAM_DEVELOP} --head tmp-${DOWNSTREAM_DEVELOP}-$(date +%Y%m%d)
-    #    #${{ inputs.pr_branch_prefix }}-sync-test-$(date +%Y%m%d) 
-    #    #upstream/${{ env.UPSTREAM_MAIN }}
-    #  env:
-    #    GITHUB_TOKEN: ${{ inputs.github_token }}
-    #  shell: bash
-
-    
-    
-    #- name: Run reviewdog to suggest conflict resolutions
-    #  if: env.conflicts == 'true'
-    #  uses: reviewdog/action-suggester@v1
-    #  with:
-    #    github_token: ${{ inputs.github_token }}
-    #    tool_name: 'merge-conflict-suggester'
-    #    level: 'warning'
-    #    filter_mode: 'diff_context'
-    #    fail_on_error: 'false'
-    #    cleanup: 'true'
-
-    #- name: Create Pull Request for Downstream develop
-    #  #if: env.conflicts == 'false'
-    #  uses: peter-evans/create-pull-request@v4
-    #  id: create_pr_develop
-    #  with:
-    #    token: ${{ inputs.github_token }}
-    #    base: ${{ inputs.downstream_develop_branch }}
-    #    branch: tmp-${DOWNSTREAM_DEVELOP}-$(date +%Y%m%d)
-    #    #head: tmp-${DOWNSTREAM_DEVELOP}-$(date +%Y%m%d)
-    #    title: "Automated PR: Rebase ${ UPSTREAM_MAIN } into ${ DOWNSTREAM_DEVELOP }"
-    #    body: "This PR was created automatically by the Fork Maintenance System to rebase changes from Downstream main into the develop branch."
-    #    draft: false
-
-    - name: Run Docker Container for Install
-      run: |
-        docker exec my_container bash -c "cd /myworkspace; pip install -e ."
-      shell: bash
-
-    #develop tests 
-    - name: Run Docker Container for Unit Tests
-      if: env.rebase_approved == 'false'
-      run: |
-        echo "Running unit tests inside Docker..."
-        #echo "" > ${{ env.EXTERNAL_DIR }}/UNIT_TEST_RESULTS.txt
-        #bash ${{ env.EXTERNAL_DIR }}/run_docker.sh "cd /myworkspace && ${{ inputs.unit_test_command }} 2>&1 | tee /myworkspace/UNIT_TEST_RESULTS.txt" || true
-        docker exec my_container bash -c "cd /myworkspace; ${{ inputs.unit_test_command }} 2>&1 | tee /myworkspace/2_UNIT_TEST_RESULTS.txt" 
-        echo "Unit Test Results: $(cat 2_UNIT_TEST_RESULTS.txt)"
-        #echo "UNIT_TEST_RESULTS=$(cat ${{ env.EXTERNAL_DIR }}/UNIT_TEST_RESULTS.txt)" >> $GITHUB_ENV
-      shell: bash
-
-    - name: Run Docker Container for Performance Tests
-      if: env.rebase_approved == 'false'
-      run: |
-        echo "Running performance tests inside Docker..."
-        #PERFORMANCE_TEST_RESULTS=$(bash ${{ env.EXTERNAL_DIR }}/run_docker.sh "cd /myworkspace && ${{ inputs.performance_test_command }} 2>&1") || true.
-        docker exec my_container bash -c "cd /myworkspace; ${{ inputs.performance_test_command }} 2>&1 | tee /myworkspace/2_PERF_TEST_RESULTS.txt" 
-        echo "Performance Test Results: $(cat 2_PERF_TEST_RESULTS.txt)"
-        #echo "PERFORMANCE_TEST_RESULTS=$PERFORMANCE_TEST_RESULTS" >> $GITHUB_ENV
-      shell: bash
-
-    ##- name: Comment test results on develop PR
-    ##  run: |
-    ##    UNIT_TEST_COMMENT="### Unit Test Results\n\`\`\`\n${UNIT_TEST_RESULTS}\n\`\`\`"
-    ##    PERFORMANCE_TEST_COMMENT="### Performance Test Results\n\`\`\`\n${PERFORMANCE_TEST_RESULTS}\n\`\`\`"
-    ##    #PR_URL_DEVELOP=$PR_URL    #(jq -r '.html_url' ${{ steps.create_pr_develop.outputs.pull_request }})
-    ##    echo "Commenting test results on develop PR..."
-    ##    gh pr comment $PR_URL -b "$UNIT_TEST_COMMENT\n\n$PERFORMANCE_TEST_COMMENT"
-    ##  shell: bash
-    ##  env:
-    ##    GITHUB_TOKEN: ${{ inputs.github_token }}
-    ##    UNIT_TEST_RESULTS: ${{ env.UNIT_TEST_RESULTS }}
-    ##    PERFORMANCE_TEST_RESULTS: ${{ env.PERFORMANCE_TEST_RESULTS }}
-
-    - name: Upload diff file as artifact test 2 
-      uses: actions/upload-artifact@v3
-      with:
-        name: git-diff-file-test-2
-        path: develop_diff.txt
-
-    - name: Upload ut file as artifact test 2 
-      uses: actions/upload-artifact@v3
-      with:
-        name: git-ut-file-test-2
-        path: 2_UNIT_TEST_RESULTS.txt
-
-    - name: Upload perf file as artifact test 2 
-      uses: actions/upload-artifact@v3
-      with:
-        name: git-perf-file-test-2
-        path: 2_PERF_TEST_RESULTS.txt
-
-test:
-  using: "composite"
-  needs: develop
-  steps:
-
-    - name: Append Test Results to Issue
-      if: env.rebase_approved == 'false'
-      run: |
-        REPO_OWNER=$(echo $GITHUB_REPOSITORY | cut -d'/' -f1)
-        REPO_NAME=$(echo $GITHUB_REPOSITORY | cut -d'/' -f2)
-        DIFF_ARTIFACT_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts/git-diff-file-test-2"
-        COMPARE_URL="https://github.com/ROCm/transformers/compare/$DOWNSTREAM_TESTING...ROCm:transformers:tmp-${DOWNSTREAM_DEVELOP}-$(date +%Y%m%d)" 
-        DIFF_INFO="Git diff artifact URL for tmp-${DOWNSTREAM_DEVELOP}-$(date +%Y%m%d) vs ${DOWNSTREAM_DEVELOP}: $ARTIFACT_URL <br /> Compare URL on Github: $COMPARE_URL"
-        UT_ARTIFACT_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts/git-ut-file-test-2"
-        UNIT_TEST_INFO="### Unit Test Results for Testing Branch ${{ env.BRANCH_NAME }} <br /> \`\`\` <br /> $UT_ARTIFACT_URL <br /> \`\`\`"
-        UNIT_TEST_COMMENT="### Unit Test Results for develop ${{ env.BRANCH_NAME }} <br /> \`\`\` <br /> $(cat 2_UNIT_TEST_RESULTS.txt) <br /> \`\`\`"
-        PERF_ARTIFACT_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts/git-perf-file-test-2"
-        PERF_TEST_INFO="### Performance Test Results for ${{ env.BRANCH_NAME }} <br /> \`\`\` <br /> $PERF_ARTIFACT_URL <br /> \`\`\`"
-        PERFORMANCE_TEST_COMMENT="### Performance Test Results for ${{ env.BRANCH_NAME }} <br /> \`\`\` <br /> $(cat 2_PERF_TEST_RESULTS.txt) <br /> \`\`\`"
-
-        # Combine all parts into a single file
-        echo -e "$DIFF_INFO <br /> <br /> $UNIT_TEST_INFO <br /> <br /> $PERF_TEST_INFO" > comment_body.txt
-        # Use --body-file to pass the comment body
-        gh issue comment ${{ env.issue_number }} --body-file comment_body.txt --repo "$REPO_OWNER/$REPO_NAME"
-        
-        #gh issue comment ${{ env.issue_number }} --body "$DIFF_INFO <br /> <br /> $UNIT_TEST_COMMENT <br /> <br /> $PERFORMANCE_TEST_COMMENT" --repo "$REPO_OWNER/$REPO_NAME"
-        rm -rf 2_UNIT_TEST_RESULTS.txt
-        rm -rf 2_PERF_TEST_RESULTS.txt
-        rm -rf develop_diff.txt
-        rm -rf comment_body.txt
-        sudo rm -rf reports/
-      shell: bash
-      env:
-        GITHUB_TOKEN: ${{ inputs.github_token }}
-        UNIT_TEST_RESULTS: ${{ env.UNIT_TEST_RESULTS }}
-        PERFORMANCE_TEST_RESULTS: ${{ env.PERFORMANCE_TEST_RESULTS }}
-
-
-    #cherry pick from develop to new branch release
-    #Downstream develop -> release
-    - name: Create new Downstream release branch from latest release
-      run: |
-        git checkout upstream/$UPSTREAM_RELEASE
-        git checkout -b $DOWNSTREAM_TESTING
-        echo "BRANCH_NAME=${DOWNSTREAM_TESTING}" >> $GITHUB_ENV
-      shell: bash
-
-    - name: Cherry-pick specific commits from develop to release
-      run: |
-        IFS=',' read -r -a commit_array <<< "$COMMITS"
-        for commit in "${commit_array[@]}"; do
-          git cherry-pick $commit || true
-        done
-        git diff origin/$BRANCH_NAME..upstream/$UPSTREAM_RELEASE > test_diff.txt
-      shell: bash
-
-    #push new branch 
-    - name: Push new testing branch
-      if: env.rebase_approved == 'true'
-      run: |
-        git push origin ${DOWNSTREAM_TESTING} --force
-      shell: bash
-      env:
-        GITHUB_TOKEN: ${{ inputs.github_token }}
-
-    - name: Run Docker Container for Install
-      run: |
-        #bash ${{ env.EXTERNAL_DIR }}/run_docker.sh "cd /myworkspace && pip install -e ."
-        docker exec my_container bash -c "cd /myworkspace; pip install -e ."
-      shell: bash
-
-    ###- name: Run unit tests for release
-    ###  if: env.rebase_approved == 'false'
-    ###  run: |
-    ###    echo "Running unit tests for release..."
-    ###    UNIT_TEST_RESULTS=$(eval "${{ inputs.unit_test_command }} 2>&1")
-    ###    echo "Unit Test Results: $UNIT_TEST_RESULTS"
-    ###    echo "UNIT_TEST_RESULTS=$UNIT_TEST_RESULTS" >> $GITHUB_ENV
-    ###  shell: bash
-
-    ###- name: Run performance tests for release
-    ###  if: env.rebase_approved == 'false'
-    ###  run: |
-    ###    echo "Running performance tests for release..."
-    ###    PERFORMANCE_TEST_RESULTS=$(eval "${{ inputs.performance_test_command }} 2>&1")
-    ###    echo "Performance Test Results: $PERFORMANCE_TEST_RESULTS"
-    ###    echo "PERFORMANCE_TEST_RESULTS=$PERFORMANCE_TEST_RESULTS" >> $GITHUB_ENV
-    ###  shell: bash
-
-    - name: Run Docker Container for Unit Tests
-      if: env.rebase_approved == 'false'
-      run: |
-        echo "Running unit tests inside Docker..."
-        #bash ${{ env.EXTERNAL_DIR }}/run_docker.sh "cd /myworkspace && ${{ inputs.unit_test_command }} 2>&1 | tee /myworkspace/UNIT_TEST_RESULTS.txt" || true
-        docker exec my_container bash -c "cd /myworkspace; ${{ inputs.unit_test_command }} 2>&1 | tee /myworkspace/3_UNIT_TEST_RESULTS.txt" 
-        echo "Unit Test Results: $(cat 3_UNIT_TEST_RESULTS.txt)"
-        #echo "UNIT_TEST_RESULTS=$(cat ${{ env.EXTERNAL_DIR }}/UNIT_TEST_RESULTS.txt)" >> $GITHUB_ENV
-      shell: bash
-
-    - name: Run Docker Container for Performance Tests
-      if: env.rebase_approved == 'false'
-      run: |
-        echo "Running performance tests inside Docker..."
-        #PERFORMANCE_TEST_RESULTS=$(bash ${{ env.EXTERNAL_DIR }}/run_docker.sh "cd /myworkspace && ${{ inputs.performance_test_command }} 2>&1") || true
-        docker exec my_container bash -c "cd /myworkspace; ${{ inputs.performance_test_command }} 2>&1 | tee /myworkspace/3_PERF_TEST_RESULTS.txt" 
-        echo "Performance Test Results: $(cat 3_PERF_TEST_RESULTS.txt)"
-        #echo "PERFORMANCE_TEST_RESULTS=$PERFORMANCE_TEST_RESULTS" >> $GITHUB_ENV
-      shell: bash
-
-    ##- name: Create Issue with test results for release
-    ##  run: |
-    ##    UNIT_TEST_COMMENT="### Unit Test Results\n\`\`\`\n${UNIT_TEST_RESULTS}\n\`\`\`"
-    ##    PERFORMANCE_TEST_COMMENT="### Performance Test Results\n\`\`\`\n${PERFORMANCE_TEST_RESULTS}\n\`\`\`"
-    ##    ISSUE_BODY="${UNIT_TEST_COMMENT}\n\n${PERFORMANCE_TEST_COMMENT}"
-    ##    REPO_OWNER=$(echo $GITHUB_REPOSITORY | cut -d'/' -f1)
-    ##    REPO_NAME=$(echo $GITHUB_REPOSITORY | cut -d'/' -f2)
-    ##    gh issue create --repo "$REPO_OWNER/$REPO_NAME" --title "Test Results for release branch ${{ env.DOWNSTREAM_TESTING }}" --body "$ISSUE_BODY"
-    ##  shell: bash
-    ##  env:
-    ##    GITHUB_TOKEN: ${{ inputs.github_token }}
-    ##    UNIT_TEST_RESULTS: ${{ env.UNIT_TEST_RESULTS }}
-    ##    PERFORMANCE_TEST_RESULTS: ${{ env.PERFORMANCE_TEST_RESULTS }}
-
-    - name: Upload diff file as artifact test 3 
-      uses: actions/upload-artifact@v3
-      with:
-        name: git-diff-file-test-3
-        path: test_diff.txt
-
-    - name: Upload ut file as artifact test 3 
-      uses: actions/upload-artifact@v3
-      with:
-        name: git-ut-file-test-3
-        path: 3_UNIT_TEST_RESULTS.txt
-
-    - name: Upload perf file as artifact test 3 
-      uses: actions/upload-artifact@v3
-      with:
-        name: git-perf-file-test-3
-        path: 3_PERF_TEST_RESULTS.txt
-
-final:
-  using: "composite"
-  needs: test
-  steps:  
-
-    - name: Append Test Results to Issue
-      if: env.rebase_approved == 'false'
-      run: |
-        REPO_OWNER=$(echo $GITHUB_REPOSITORY | cut -d'/' -f1)
-        REPO_NAME=$(echo $GITHUB_REPOSITORY | cut -d'/' -f2)
-        DIFF_ARTIFACT_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts/git-diff-file-test-3"
-        COMPARE_URL="https://github.com/ROCm/transformers/compare/$DOWNSTREAM_TESTING...huggingface:transformers:$UPSTREAM_RELEASE"
-        DIFF_INFO="Git diff artifact URL for Upstream Testing vs Downstream Testing: $DIFF_ARTIFACT_URL <br /> Compare URL on Github: $COMPARE_URL"
-        UT_ARTIFACT_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts/git-ut-file-test-3"
-        UNIT_TEST_INFO="### Unit Test Results for Testing Branch ${{ env.BRANCH_NAME }} <br /> \`\`\` <br /> $UT_ARTIFACT_URL <br /> \`\`\`"
-        UNIT_TEST_COMMENT="### Unit Test Results for Testing Branch ${{ env.BRANCH_NAME }} <br /> \`\`\` <br /> $(cat 3_UNIT_TEST_RESULTS.txt) <br /> \`\`\`"
-        PERF_ARTIFACT_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts/git-perf-file-test-3"
-        PERF_TEST_INFO="### Performance Test Results for ${{ env.BRANCH_NAME }} <br /> \`\`\` <br /> $PERF_ARTIFACT_URL <br /> \`\`\`"
-        PERFORMANCE_TEST_COMMENT="### Performance Test Results for ${{ env.BRANCH_NAME }} <br /> \`\`\` <br /> $(cat 3_PERF_TEST_RESULTS.txt) <br /> \`\`\`"
-
-        # Combine all parts into a single file
-        echo -e "$DIFF_INFO <br /> <br /> $UNIT_TEST_INFO <br /> <br /> $PERF_TEST_INFO" > comment_body.txt
-        # Use --body-file to pass the comment body
-        gh issue comment ${{ env.issue_number }} --body-file comment_body.txt --repo "$REPO_OWNER/$REPO_NAME"
-        
-        #gh issue comment ${{ env.issue_number }} --body "$DIFF_INFO <br /> <br /> $UNIT_TEST_INFO <br /> <br /> $PERFORMANCE_TEST_INFO" --repo "$REPO_OWNER/$REPO_NAME"
-        rm -rf 3_UNIT_TEST_RESULTS.txt
-        rm -rf 3_PERF_TEST_RESULTS.txt
-        rm -rf test_diff.txt
-        rm -rf comment_body.txt
-      shell: bash
-      env:
-        GITHUB_TOKEN: ${{ inputs.github_token }}
-        UNIT_TEST_RESULTS: ${{ env.UNIT_TEST_RESULTS }}
-        PERFORMANCE_TEST_RESULTS: ${{ env.PERFORMANCE_TEST_RESULTS }}
-
-    - name: Clean up Docker Container and External Directory
-      if: always()
-      run: |
-        docker stop my_container
-        docker rm my_container
-        rm -rf ${{ env.EXTERNAL_DIR }}
-        TARGET_DIR="${{ github.workspace }}"
-        if [ -d $TARGET_DIR ]; then
-          # Clean the working directory and reset the repository to its original state
-          cd $TARGET_DIR
-          #chmod -R u+w $TARGET_DIR
-          git rebase --abort || true
-          git merge --abort || true
-          git reset --hard
-          sudo git clean -fdx
-          #git worktree prune
-          git branch -D ${DOWNSTREAM_TESTING} || true
-          git branch -D tmp-${{ env.DOWNSTREAM_DEVELOP }}-* || true
-          rm -fr .git/rebase-merge .git/MERGE_HEAD
-        fi
-      shell: bash
+  test:
+    using: "composite"
+    needs: develop
+    outputs: #chek-prs is id: of step
+      pr-number: ${{ steps.check-prs.outputs.PR_NUMBER }}
+      upstream-main: ${{ steps.extract_branches.outputs.UPSTREAM_MAIN }}
+      upstream-release: ${{ steps.extract_branches.outputs.UPSTREAM_RELEASE }}
+    env:
+      #PR_NUMBER: ${{ needs.check-pr.outputs.pr-number }}
+      CONTAINER_ID: ${{ needs.start_docker_container.outputs.CONTAINER_ID }} 
+      #pr-number: ${{ needs.check-prs.outputs.PR_NUMBER }}
+      UPSTREAM_MAIN: ${{ needs.extract_branches.outputs.UPSTREAM_MAIN }}
+      UPSTREAM_RELEASE: ${{ needs.extract_branches.outputs.UPSTREAM_RELEASE }}
+      DOWNSTREAM_MAIN: ${{ needs.extract_branches.outputs.DOWNSTREAM_MAIN }}
+      DOWNSTREAM_DEVELOP: ${{ needs.extract_branches.outputs.DOWNSTREAM_DEVELOP }}
+      DOWNSTREAM_TESTING: ${{ needs.extract_branches.outputs.DOWNSTREAM_TESTING }}
+      COMMITS: ${{ needs.extract_branches.outputs.COMMITS }}
+      issue_number: ${{ needs.find_or_create_issue.outputs.issue_number }}
+      rebase_approved: ${{ needs.check_comment.outputs.rebase_approved }}
+    steps:
+  
+      - name: Append Test Results to Issue
+        if: env.rebase_approved == 'false'
+        run: |
+          REPO_OWNER=$(echo $GITHUB_REPOSITORY | cut -d'/' -f1)
+          REPO_NAME=$(echo $GITHUB_REPOSITORY | cut -d'/' -f2)
+          DIFF_ARTIFACT_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts/git-diff-file-test-2"
+          COMPARE_URL="https://github.com/ROCm/transformers/compare/$DOWNSTREAM_TESTING...ROCm:transformers:tmp-${DOWNSTREAM_DEVELOP}-$(date +%Y%m%d)" 
+          DIFF_INFO="Git diff artifact URL for tmp-${DOWNSTREAM_DEVELOP}-$(date +%Y%m%d) vs ${DOWNSTREAM_DEVELOP}: $ARTIFACT_URL <br /> Compare URL on Github: $COMPARE_URL"
+          UT_ARTIFACT_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts/git-ut-file-test-2"
+          UNIT_TEST_INFO="### Unit Test Results for Testing Branch ${{ env.BRANCH_NAME }} <br /> \`\`\` <br /> $UT_ARTIFACT_URL <br /> \`\`\`"
+          UNIT_TEST_COMMENT="### Unit Test Results for develop ${{ env.BRANCH_NAME }} <br /> \`\`\` <br /> $(cat 2_UNIT_TEST_RESULTS.txt) <br /> \`\`\`"
+          PERF_ARTIFACT_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts/git-perf-file-test-2"
+          PERF_TEST_INFO="### Performance Test Results for ${{ env.BRANCH_NAME }} <br /> \`\`\` <br /> $PERF_ARTIFACT_URL <br /> \`\`\`"
+          PERFORMANCE_TEST_COMMENT="### Performance Test Results for ${{ env.BRANCH_NAME }} <br /> \`\`\` <br /> $(cat 2_PERF_TEST_RESULTS.txt) <br /> \`\`\`"
+  
+          # Combine all parts into a single file
+          echo -e "$DIFF_INFO <br /> <br /> $UNIT_TEST_INFO <br /> <br /> $PERF_TEST_INFO" > comment_body.txt
+          # Use --body-file to pass the comment body
+          gh issue comment ${{ env.issue_number }} --body-file comment_body.txt --repo "$REPO_OWNER/$REPO_NAME"
+          
+          #gh issue comment ${{ env.issue_number }} --body "$DIFF_INFO <br /> <br /> $UNIT_TEST_COMMENT <br /> <br /> $PERFORMANCE_TEST_COMMENT" --repo "$REPO_OWNER/$REPO_NAME"
+          rm -rf 2_UNIT_TEST_RESULTS.txt
+          rm -rf 2_PERF_TEST_RESULTS.txt
+          rm -rf develop_diff.txt
+          rm -rf comment_body.txt
+          sudo rm -rf reports/
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ inputs.github_token }}
+          UNIT_TEST_RESULTS: ${{ env.UNIT_TEST_RESULTS }}
+          PERFORMANCE_TEST_RESULTS: ${{ env.PERFORMANCE_TEST_RESULTS }}
+  
+  
+      #cherry pick from develop to new branch release
+      #Downstream develop -> release
+      - name: Create new Downstream release branch from latest release
+        run: |
+          git checkout upstream/$UPSTREAM_RELEASE
+          git checkout -b $DOWNSTREAM_TESTING
+          echo "BRANCH_NAME=${DOWNSTREAM_TESTING}" >> $GITHUB_ENV
+        shell: bash
+  
+      - name: Cherry-pick specific commits from develop to release
+        run: |
+          IFS=',' read -r -a commit_array <<< "$COMMITS"
+          for commit in "${commit_array[@]}"; do
+            git cherry-pick $commit || true
+          done
+          git diff origin/$BRANCH_NAME..upstream/$UPSTREAM_RELEASE > test_diff.txt
+        shell: bash
+  
+      #push new branch 
+      - name: Push new testing branch
+        if: env.rebase_approved == 'true'
+        run: |
+          git push origin ${DOWNSTREAM_TESTING} --force
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ inputs.github_token }}
+  
+      - name: Run Docker Container for Install
+        run: |
+          #bash ${{ env.EXTERNAL_DIR }}/run_docker.sh "cd /myworkspace && pip install -e ."
+          docker exec my_container bash -c "cd /myworkspace; pip install -e ."
+        shell: bash
+  
+      ###- name: Run unit tests for release
+      ###  if: env.rebase_approved == 'false'
+      ###  run: |
+      ###    echo "Running unit tests for release..."
+      ###    UNIT_TEST_RESULTS=$(eval "${{ inputs.unit_test_command }} 2>&1")
+      ###    echo "Unit Test Results: $UNIT_TEST_RESULTS"
+      ###    echo "UNIT_TEST_RESULTS=$UNIT_TEST_RESULTS" >> $GITHUB_ENV
+      ###  shell: bash
+  
+      ###- name: Run performance tests for release
+      ###  if: env.rebase_approved == 'false'
+      ###  run: |
+      ###    echo "Running performance tests for release..."
+      ###    PERFORMANCE_TEST_RESULTS=$(eval "${{ inputs.performance_test_command }} 2>&1")
+      ###    echo "Performance Test Results: $PERFORMANCE_TEST_RESULTS"
+      ###    echo "PERFORMANCE_TEST_RESULTS=$PERFORMANCE_TEST_RESULTS" >> $GITHUB_ENV
+      ###  shell: bash
+  
+      - name: Run Docker Container for Unit Tests
+        if: env.rebase_approved == 'false'
+        run: |
+          echo "Running unit tests inside Docker..."
+          #bash ${{ env.EXTERNAL_DIR }}/run_docker.sh "cd /myworkspace && ${{ inputs.unit_test_command }} 2>&1 | tee /myworkspace/UNIT_TEST_RESULTS.txt" || true
+          docker exec my_container bash -c "cd /myworkspace; ${{ inputs.unit_test_command }} 2>&1 | tee /myworkspace/3_UNIT_TEST_RESULTS.txt" 
+          echo "Unit Test Results: $(cat 3_UNIT_TEST_RESULTS.txt)"
+          #echo "UNIT_TEST_RESULTS=$(cat ${{ env.EXTERNAL_DIR }}/UNIT_TEST_RESULTS.txt)" >> $GITHUB_ENV
+        shell: bash
+  
+      - name: Run Docker Container for Performance Tests
+        if: env.rebase_approved == 'false'
+        run: |
+          echo "Running performance tests inside Docker..."
+          #PERFORMANCE_TEST_RESULTS=$(bash ${{ env.EXTERNAL_DIR }}/run_docker.sh "cd /myworkspace && ${{ inputs.performance_test_command }} 2>&1") || true
+          docker exec my_container bash -c "cd /myworkspace; ${{ inputs.performance_test_command }} 2>&1 | tee /myworkspace/3_PERF_TEST_RESULTS.txt" 
+          echo "Performance Test Results: $(cat 3_PERF_TEST_RESULTS.txt)"
+          #echo "PERFORMANCE_TEST_RESULTS=$PERFORMANCE_TEST_RESULTS" >> $GITHUB_ENV
+        shell: bash
+  
+      ##- name: Create Issue with test results for release
+      ##  run: |
+      ##    UNIT_TEST_COMMENT="### Unit Test Results\n\`\`\`\n${UNIT_TEST_RESULTS}\n\`\`\`"
+      ##    PERFORMANCE_TEST_COMMENT="### Performance Test Results\n\`\`\`\n${PERFORMANCE_TEST_RESULTS}\n\`\`\`"
+      ##    ISSUE_BODY="${UNIT_TEST_COMMENT}\n\n${PERFORMANCE_TEST_COMMENT}"
+      ##    REPO_OWNER=$(echo $GITHUB_REPOSITORY | cut -d'/' -f1)
+      ##    REPO_NAME=$(echo $GITHUB_REPOSITORY | cut -d'/' -f2)
+      ##    gh issue create --repo "$REPO_OWNER/$REPO_NAME" --title "Test Results for release branch ${{ env.DOWNSTREAM_TESTING }}" --body "$ISSUE_BODY"
+      ##  shell: bash
+      ##  env:
+      ##    GITHUB_TOKEN: ${{ inputs.github_token }}
+      ##    UNIT_TEST_RESULTS: ${{ env.UNIT_TEST_RESULTS }}
+      ##    PERFORMANCE_TEST_RESULTS: ${{ env.PERFORMANCE_TEST_RESULTS }}
+  
+      - name: Upload diff file as artifact test 3 
+        uses: actions/upload-artifact@v3
+        with:
+          name: git-diff-file-test-3
+          path: test_diff.txt
+  
+      - name: Upload ut file as artifact test 3 
+        uses: actions/upload-artifact@v3
+        with:
+          name: git-ut-file-test-3
+          path: 3_UNIT_TEST_RESULTS.txt
+  
+      - name: Upload perf file as artifact test 3 
+        uses: actions/upload-artifact@v3
+        with:
+          name: git-perf-file-test-3
+          path: 3_PERF_TEST_RESULTS.txt
+  
+  final:
+    using: "composite"
+    needs: test
+    steps:  
+  
+      - name: Append Test Results to Issue
+        if: env.rebase_approved == 'false'
+        run: |
+          REPO_OWNER=$(echo $GITHUB_REPOSITORY | cut -d'/' -f1)
+          REPO_NAME=$(echo $GITHUB_REPOSITORY | cut -d'/' -f2)
+          DIFF_ARTIFACT_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts/git-diff-file-test-3"
+          COMPARE_URL="https://github.com/ROCm/transformers/compare/$DOWNSTREAM_TESTING...huggingface:transformers:$UPSTREAM_RELEASE"
+          DIFF_INFO="Git diff artifact URL for Upstream Testing vs Downstream Testing: $DIFF_ARTIFACT_URL <br /> Compare URL on Github: $COMPARE_URL"
+          UT_ARTIFACT_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts/git-ut-file-test-3"
+          UNIT_TEST_INFO="### Unit Test Results for Testing Branch ${{ env.BRANCH_NAME }} <br /> \`\`\` <br /> $UT_ARTIFACT_URL <br /> \`\`\`"
+          UNIT_TEST_COMMENT="### Unit Test Results for Testing Branch ${{ env.BRANCH_NAME }} <br /> \`\`\` <br /> $(cat 3_UNIT_TEST_RESULTS.txt) <br /> \`\`\`"
+          PERF_ARTIFACT_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts/git-perf-file-test-3"
+          PERF_TEST_INFO="### Performance Test Results for ${{ env.BRANCH_NAME }} <br /> \`\`\` <br /> $PERF_ARTIFACT_URL <br /> \`\`\`"
+          PERFORMANCE_TEST_COMMENT="### Performance Test Results for ${{ env.BRANCH_NAME }} <br /> \`\`\` <br /> $(cat 3_PERF_TEST_RESULTS.txt) <br /> \`\`\`"
+  
+          # Combine all parts into a single file
+          echo -e "$DIFF_INFO <br /> <br /> $UNIT_TEST_INFO <br /> <br /> $PERF_TEST_INFO" > comment_body.txt
+          # Use --body-file to pass the comment body
+          gh issue comment ${{ env.issue_number }} --body-file comment_body.txt --repo "$REPO_OWNER/$REPO_NAME"
+          
+          #gh issue comment ${{ env.issue_number }} --body "$DIFF_INFO <br /> <br /> $UNIT_TEST_INFO <br /> <br /> $PERFORMANCE_TEST_INFO" --repo "$REPO_OWNER/$REPO_NAME"
+          rm -rf 3_UNIT_TEST_RESULTS.txt
+          rm -rf 3_PERF_TEST_RESULTS.txt
+          rm -rf test_diff.txt
+          rm -rf comment_body.txt
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ inputs.github_token }}
+          UNIT_TEST_RESULTS: ${{ env.UNIT_TEST_RESULTS }}
+          PERFORMANCE_TEST_RESULTS: ${{ env.PERFORMANCE_TEST_RESULTS }}
+  
+      - name: Clean up Docker Container and External Directory
+        if: always()
+        run: |
+          docker stop my_container
+          docker rm my_container
+          rm -rf ${{ env.EXTERNAL_DIR }}
+          TARGET_DIR="${{ github.workspace }}"
+          if [ -d $TARGET_DIR ]; then
+            # Clean the working directory and reset the repository to its original state
+            cd $TARGET_DIR
+            #chmod -R u+w $TARGET_DIR
+            git rebase --abort || true
+            git merge --abort || true
+            git reset --hard
+            sudo git clean -fdx
+            #git worktree prune
+            git branch -D ${DOWNSTREAM_TESTING} || true
+            git branch -D tmp-${{ env.DOWNSTREAM_DEVELOP }}-* || true
+            rm -fr .git/rebase-merge .git/MERGE_HEAD
+          fi
+        shell: bash
 
 # Example schedule.json
 # {
