@@ -415,7 +415,11 @@ jobs:
     outputs: #chek-prs is id: of step
       pr-number: ${{ steps.check-prs.outputs.PR_NUMBER }}
       upstream-main: ${{ steps.extract_branches.outputs.UPSTREAM_MAIN }}
-      upstream-release: ${{ steps.extract_branches.outputs.UPSTREAM_RELEASE }}
+      
+      GIT_DIFF_URL: ${{ steps.get_artifacts_1.outputs.GIT_DIFF_URL }}
+      GIT_UT_URL: ${{ steps.get_artifacts_1.outputs.GIT_UT_URL }}
+      GIT_PERF_URL: ${{ steps.get_artifacts_1.outputs.GIT_PERF_URL }}
+      conflicts: ${{ steps.check_conflicts.outputs.conflicts }}
     env:
       #PR_NUMBER: ${{ needs.check-pr.outputs.pr-number }}
       CONTAINER_ID: ${{ needs.start_docker_container.outputs.CONTAINER_ID }} 
@@ -431,7 +435,7 @@ jobs:
     steps:        
   
       - name: Retrieve Artifact IDs
-        id: get_artifacts
+        id: get_artifacts_1
         run: |
           run_id="${{ github.run_id }}"
           repo="${{ github.repository }}"
@@ -573,9 +577,11 @@ jobs:
           if git status | grep -q "Unmerged paths"; then
             echo "Rebase conflicts detected."
             echo "conflicts=true" >> $GITHUB_ENV
+            echo "conflicts=true" >> $GITHUB_OUTPUT
           else
             echo "No rebase conflicts."
             echo "conflicts=false" >> $GITHUB_ENV
+            echo "conflicts=false" >> $GITHUB_OUTPUT
           fi
         shell: bash
   
@@ -918,6 +924,46 @@ jobs:
       issue_number: ${{ needs.find_or_create_issue.outputs.issue_number }}
       rebase_approved: ${{ needs.check_comment.outputs.rebase_approved }}
     steps:
+
+      - name: Retrieve Artifact IDs
+        id: get_artifacts_2
+        run: |
+          run_id="${{ github.run_id }}"
+          repo="${{ github.repository }}"
+          echo "Repository: $repo"
+          echo "Run ID: $run_id"
+          # Fetch artifacts JSON
+          artifacts_json=$(gh api "repos/${repo}/actions/runs/${run_id}/artifacts")
+          echo "Artifacts JSON:"
+          echo "$artifacts_json"
+      
+          # List all artifact names for verification
+          echo "Artifact Names:"
+          echo "$artifacts_json" | jq -r '.artifacts[].name'
+      
+          # Extract artifact IDs based on names
+          git_diff_id=$(echo "$artifacts_json" | jq -r '.artifacts[] | select(.name=="git-diff-file-test-2") | .id')
+          git_ut_id=$(echo "$artifacts_json" | jq -r '.artifacts[] | select(.name=="git-ut-file-test-2") | .id')
+          git_perf_id=$(echo "$artifacts_json" | jq -r '.artifacts[] | select(.name=="git-perf-file-test-2") | .id')
+  
+          # Debug: print the IDs
+          echo "git_diff_id: $git_diff_id"
+          echo "git_ut_id: $git_ut_id"
+          echo "git_perf_id: $git_perf_id"
+      
+          # Construct artifact URLs
+          git_diff_url="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts/${git_diff_id}"
+          git_ut_url="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts/${git_ut_id}"
+          git_perf_url="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts/${git_perf_id}"
+      
+          # Export URLs as environment variables
+          echo "GIT_DIFF_URL=$git_diff_url" >> $GITHUB_ENV
+          echo "GIT_UT_URL=$git_ut_url" >> $GITHUB_ENV
+          echo "GIT_PERF_URL=$git_perf_url" >> $GITHUB_ENV
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ inputs.github_token }}
+  
   
       - name: Append Test Results to Issue
         if: env.rebase_approved == 'false'
@@ -933,11 +979,26 @@ jobs:
           PERF_ARTIFACT_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts/git-perf-file-test-2"
           PERF_TEST_INFO="### Performance Test Results for ${{ env.BRANCH_NAME }} <br /> \`\`\` <br /> $PERF_ARTIFACT_URL <br /> \`\`\`"
           PERFORMANCE_TEST_COMMENT="### Performance Test Results for ${{ env.BRANCH_NAME }} <br /> \`\`\` <br /> $(cat 2_PERF_TEST_RESULTS.txt) <br /> \`\`\`"
-  
+
+          DIFF_INFO="Git diff artifact URL: [Download git-diff-file-test-1]($GIT_DIFF_URL)"
+          UT_INFO="Unit Test Results: [Download git-ut-file-test-1]($GIT_UT_URL)"
+          PERF_INFO="Performance Test Results: [Download git-perf-file-test-1]($GIT_PERF_URL)"
           # Combine all parts into a single file
-          echo -e "$DIFF_INFO <br /> <br /> $UNIT_TEST_INFO <br /> <br /> $PERF_TEST_INFO" > comment_body.txt
+          {
+            echo "$DIFF_INFO"
+            echo ""
+            echo "$UT_INFO"
+            echo ""
+            echo "$PERF_INFO"
+          } > comment_body.txt
           # Use --body-file to pass the comment body
           gh issue comment ${{ env.issue_number }} --body-file comment_body.txt --repo "$REPO_OWNER/$REPO_NAME"
+  
+  
+          # Combine all parts into a single file
+          #echo -e "$DIFF_INFO <br /> <br /> $UNIT_TEST_INFO <br /> <br /> $PERF_TEST_INFO" > comment_body.txt
+          # Use --body-file to pass the comment body
+          #gh issue comment ${{ env.issue_number }} --body-file comment_body.txt --repo "$REPO_OWNER/$REPO_NAME"
           
           #gh issue comment ${{ env.issue_number }} --body "$DIFF_INFO <br /> <br /> $UNIT_TEST_COMMENT <br /> <br /> $PERFORMANCE_TEST_COMMENT" --repo "$REPO_OWNER/$REPO_NAME"
           rm -rf 2_UNIT_TEST_RESULTS.txt
@@ -1038,19 +1099,19 @@ jobs:
       ##    PERFORMANCE_TEST_RESULTS: ${{ env.PERFORMANCE_TEST_RESULTS }}
   
       - name: Upload diff file as artifact test 3 
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: git-diff-file-test-3
           path: test_diff.txt
   
       - name: Upload ut file as artifact test 3 
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: git-ut-file-test-3
           path: 3_UNIT_TEST_RESULTS.txt
   
       - name: Upload perf file as artifact test 3 
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: git-perf-file-test-3
           path: 3_PERF_TEST_RESULTS.txt
@@ -1058,7 +1119,62 @@ jobs:
   final:
     using: "composite"
     needs: test
+    outputs: #chek-prs is id: of step
+      pr-number: ${{ steps.check-prs.outputs.PR_NUMBER }}
+      upstream-main: ${{ steps.extract_branches.outputs.UPSTREAM_MAIN }}
+      upstream-release: ${{ steps.extract_branches.outputs.UPSTREAM_RELEASE }}
+    env:
+      #PR_NUMBER: ${{ needs.check-pr.outputs.pr-number }}
+      CONTAINER_ID: ${{ needs.start_docker_container.outputs.CONTAINER_ID }} 
+      #pr-number: ${{ needs.check-prs.outputs.PR_NUMBER }}
+      UPSTREAM_MAIN: ${{ needs.extract_branches.outputs.UPSTREAM_MAIN }}
+      UPSTREAM_RELEASE: ${{ needs.extract_branches.outputs.UPSTREAM_RELEASE }}
+      DOWNSTREAM_MAIN: ${{ needs.extract_branches.outputs.DOWNSTREAM_MAIN }}
+      DOWNSTREAM_DEVELOP: ${{ needs.extract_branches.outputs.DOWNSTREAM_DEVELOP }}
+      DOWNSTREAM_TESTING: ${{ needs.extract_branches.outputs.DOWNSTREAM_TESTING }}
+      COMMITS: ${{ needs.extract_branches.outputs.COMMITS }}
+      issue_number: ${{ needs.find_or_create_issue.outputs.issue_number }}
+      rebase_approved: ${{ needs.check_comment.outputs.rebase_approved }}
     steps:  
+
+      - name: Retrieve Artifact IDs
+        id: get_artifacts_3
+        run: |
+          run_id="${{ github.run_id }}"
+          repo="${{ github.repository }}"
+          echo "Repository: $repo"
+          echo "Run ID: $run_id"
+          # Fetch artifacts JSON
+          artifacts_json=$(gh api "repos/${repo}/actions/runs/${run_id}/artifacts")
+          echo "Artifacts JSON:"
+          echo "$artifacts_json"
+      
+          # List all artifact names for verification
+          echo "Artifact Names:"
+          echo "$artifacts_json" | jq -r '.artifacts[].name'
+      
+          # Extract artifact IDs based on names
+          git_diff_id=$(echo "$artifacts_json" | jq -r '.artifacts[] | select(.name=="git-diff-file-test-3") | .id')
+          git_ut_id=$(echo "$artifacts_json" | jq -r '.artifacts[] | select(.name=="git-ut-file-test-3") | .id')
+          git_perf_id=$(echo "$artifacts_json" | jq -r '.artifacts[] | select(.name=="git-perf-file-test-3") | .id')
+  
+          # Debug: print the IDs
+          echo "git_diff_id: $git_diff_id"
+          echo "git_ut_id: $git_ut_id"
+          echo "git_perf_id: $git_perf_id"
+      
+          # Construct artifact URLs
+          git_diff_url="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts/${git_diff_id}"
+          git_ut_url="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts/${git_ut_id}"
+          git_perf_url="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts/${git_perf_id}"
+      
+          # Export URLs as environment variables
+          echo "GIT_DIFF_URL=$git_diff_url" >> $GITHUB_ENV
+          echo "GIT_UT_URL=$git_ut_url" >> $GITHUB_ENV
+          echo "GIT_PERF_URL=$git_perf_url" >> $GITHUB_ENV
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ inputs.github_token }}
   
       - name: Append Test Results to Issue
         if: env.rebase_approved == 'false'
@@ -1071,7 +1187,7 @@ jobs:
           UT_ARTIFACT_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts/git-ut-file-test-3"
           UNIT_TEST_INFO="### Unit Test Results for Testing Branch ${{ env.BRANCH_NAME }} <br /> \`\`\` <br /> $UT_ARTIFACT_URL <br /> \`\`\`"
           UNIT_TEST_COMMENT="### Unit Test Results for Testing Branch ${{ env.BRANCH_NAME }} <br /> \`\`\` <br /> $(cat 3_UNIT_TEST_RESULTS.txt) <br /> \`\`\`"
-          PERF_ARTIFACT_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts/git-perf-file-test-3"
+          PERF_ARTIFACT_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts/git-perf-file-test-3"  #TODO 
           PERF_TEST_INFO="### Performance Test Results for ${{ env.BRANCH_NAME }} <br /> \`\`\` <br /> $PERF_ARTIFACT_URL <br /> \`\`\`"
           PERFORMANCE_TEST_COMMENT="### Performance Test Results for ${{ env.BRANCH_NAME }} <br /> \`\`\` <br /> $(cat 3_PERF_TEST_RESULTS.txt) <br /> \`\`\`"
   
