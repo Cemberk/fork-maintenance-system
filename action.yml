@@ -413,17 +413,13 @@ jobs:
     using: "composite"
     needs: sync
     outputs: #chek-prs is id: of step
-      pr-number: ${{ steps.check-prs.outputs.PR_NUMBER }}
-      upstream-main: ${{ steps.extract_branches.outputs.UPSTREAM_MAIN }}
-      
-      GIT_DIFF_URL: ${{ steps.get_artifacts_1.outputs.GIT_DIFF_URL }}
+      #GIT_DIFF_URL: ${{ steps.get_artifacts_1.outputs.GIT_DIFF_URL }}
       GIT_UT_URL: ${{ steps.get_artifacts_1.outputs.GIT_UT_URL }}
       GIT_PERF_URL: ${{ steps.get_artifacts_1.outputs.GIT_PERF_URL }}
       conflicts: ${{ steps.check_conflicts.outputs.conflicts }}
     env:
       #PR_NUMBER: ${{ needs.check-pr.outputs.pr-number }}
       CONTAINER_ID: ${{ needs.start_docker_container.outputs.CONTAINER_ID }} 
-      #pr-number: ${{ needs.check-prs.outputs.PR_NUMBER }}
       UPSTREAM_MAIN: ${{ needs.extract_branches.outputs.UPSTREAM_MAIN }}
       UPSTREAM_RELEASE: ${{ needs.extract_branches.outputs.UPSTREAM_RELEASE }}
       DOWNSTREAM_MAIN: ${{ needs.extract_branches.outputs.DOWNSTREAM_MAIN }}
@@ -906,7 +902,7 @@ jobs:
 
   test:
     using: "composite"
-    needs: develop
+    needs: [setup, develop]
     outputs: #chek-prs is id: of step
       pr-number: ${{ steps.check-prs.outputs.PR_NUMBER }}
       upstream-main: ${{ steps.extract_branches.outputs.UPSTREAM_MAIN }}
