@@ -47,7 +47,7 @@ on:
         required: true
         type: string
     secrets:
-      github_token:
+      GITHUB_TOKEN:
         required: true
       schedule_json:
         required: true
@@ -147,7 +147,7 @@ jobs:
           #git config --global --add safe.directory /var/lib/github-runner/_work/transformers/transformers
         shell: bash
         env:
-          GITHUB_TOKEN: ${{ inputs.github_token }}
+          GITHUB_TOKEN: ${{ inputs.GITHUB_TOKEN }}
   
       - name: Fetch schedule JSON
         run: echo '${{ inputs.schedule_json }}' > schedule.json
@@ -255,7 +255,7 @@ jobs:
           fi
         shell: bash
         env:
-          GITHUB_TOKEN: ${{ inputs.github_token }}
+          GITHUB_TOKEN: ${{ inputs.GITHUB_TOKEN }}
   
       - name: Check for Comment Approval
         id: check_comment
@@ -302,7 +302,7 @@ jobs:
           fi
         shell: bash
         env:
-          GITHUB_TOKEN: ${{ inputs.github_token }}
+          GITHUB_TOKEN: ${{ inputs.GITHUB_TOKEN }}
   
   sync:
     runs-on: ${{ inputs.platform }}
@@ -348,7 +348,7 @@ jobs:
           git push origin ${{ env.DOWNSTREAM_MAIN }} --force
         shell: bash
         env:
-          GITHUB_TOKEN: ${{ inputs.github_token }}
+          GITHUB_TOKEN: ${{ inputs.GITHUB_TOKEN }}
   
       - name: Run Docker Container for Requirements
         run: |
@@ -487,7 +487,7 @@ jobs:
           echo "GIT_PERF_URL=$git_perf_url" >> $GITHUB_ENV
         shell: bash
         env:
-          GITHUB_TOKEN: ${{ inputs.github_token }}
+          GITHUB_TOKEN: ${{ inputs.GITHUB_TOKEN }}
   
   
       - name: Append Test Results to Issue
@@ -527,7 +527,7 @@ jobs:
           sudo rm -rf reports/
         shell: bash
         env:
-          GITHUB_TOKEN: ${{ inputs.github_token }}
+          GITHUB_TOKEN: ${{ inputs.GITHUB_TOKEN }}
           UNIT_TEST_RESULTS: ${{ env.UNIT_TEST_RESULTS }}
           PERFORMANCE_TEST_RESULTS: ${{ env.PERFORMANCE_TEST_RESULTS }}  
           GIT_DIFF_URL: ${{ env.GIT_DIFF_URL }}
@@ -629,7 +629,7 @@ jobs:
           git push origin tmp-${DOWNSTREAM_DEVELOP}-$(date +%Y%m%d) --force
         shell: bash
         env:
-          GITHUB_TOKEN: ${{ inputs.github_token }}
+          GITHUB_TOKEN: ${{ inputs.GITHUB_TOKEN }}
   
       ##- name: Create Pull Request for downstream develop sync
       ##  id: create_pr
@@ -642,7 +642,7 @@ jobs:
       ##    echo "PR_URL=$PR_URL" >> $GITHUB_ENV
       ##    echo "PR_NUMBER=$PR_NUMBER" >> $GITHUB_ENV
       ##  env:
-      ##    GITHUB_TOKEN: ${{ inputs.github_token }}
+      ##    GITHUB_TOKEN: ${{ inputs.GITHUB_TOKEN }}
       ##  shell: bash
   
       - name: Check for changes and create PR if necessary
@@ -673,7 +673,7 @@ jobs:
           fi
         shell: bash
         env:
-          GITHUB_TOKEN: ${{ inputs.github_token }}
+          GITHUB_TOKEN: ${{ inputs.GITHUB_TOKEN }}
       
       #- name: Wait for PR to be merged
       #  if: env.pr_merged == 'false' && env.rebase_approved == 'true'
@@ -734,7 +734,7 @@ jobs:
           echo "pr_merged=true" >> $GITHUB_ENV
         shell: bash
         env:
-          GH_TOKEN: ${{ inputs.github_token }}
+          GH_TOKEN: ${{ inputs.GITHUB_TOKEN }}
       
       - name: Rebase downstream_develop onto downstream_main
         if: env.pr_merged == 'true' && env.rebase_approved == 'true'
@@ -750,7 +750,7 @@ jobs:
           git push origin ${DOWNSTREAM_DEVELOP} --force-with-lease
         shell: bash
         env:
-          GITHUB_TOKEN: ${{ inputs.github_token }}
+          GITHUB_TOKEN: ${{ inputs.GITHUB_TOKEN }}
   
       ###- name: Create suggestions for conflicts
       ###  if: env.conflicts == 'true'
@@ -978,7 +978,7 @@ jobs:
           echo "GIT_PERF_URL=$git_perf_url" >> $GITHUB_ENV
         shell: bash
         env:
-          GITHUB_TOKEN: ${{ inputs.github_token }}
+          GITHUB_TOKEN: ${{ inputs.GITHUB_TOKEN }}
   
   
       - name: Append Test Results to Issue
@@ -1024,7 +1024,7 @@ jobs:
           sudo rm -rf reports/
         shell: bash
         env:
-          GITHUB_TOKEN: ${{ inputs.github_token }}
+          GITHUB_TOKEN: ${{ inputs.GITHUB_TOKEN }}
           UNIT_TEST_RESULTS: ${{ env.UNIT_TEST_RESULTS }}
           PERFORMANCE_TEST_RESULTS: ${{ env.PERFORMANCE_TEST_RESULTS }}
   
@@ -1054,7 +1054,7 @@ jobs:
           git push origin ${DOWNSTREAM_TESTING} --force
         shell: bash
         env:
-          GITHUB_TOKEN: ${{ inputs.github_token }}
+          GITHUB_TOKEN: ${{ inputs.GITHUB_TOKEN }}
   
       - name: Run Docker Container for Install
         run: |
@@ -1190,7 +1190,7 @@ jobs:
           echo "GIT_PERF_URL=$git_perf_url" >> $GITHUB_ENV
         shell: bash
         env:
-          GITHUB_TOKEN: ${{ inputs.github_token }}
+          GITHUB_TOKEN: ${{ inputs.GITHUB_TOKEN }}
   
       - name: Append Test Results to Issue
         if: env.rebase_approved == 'false'
@@ -1233,7 +1233,7 @@ jobs:
           rm -rf comment_body.txt
         shell: bash
         env:
-          GITHUB_TOKEN: ${{ inputs.github_token }}
+          GITHUB_TOKEN: ${{ inputs.GITHUB_TOKEN }}
           UNIT_TEST_RESULTS: ${{ env.UNIT_TEST_RESULTS }}
           PERFORMANCE_TEST_RESULTS: ${{ env.PERFORMANCE_TEST_RESULTS }}
   
