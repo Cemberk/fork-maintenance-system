@@ -9,33 +9,43 @@ on:
       github_token:
         description: "GitHub token for authentication"
         required: true
+        type: string
       upstream_repo:
         description: "URL of the upstream repository"
         required: true
+        type: string
       schedule_json:
         description: "Schedule JSON containing upstream and downstream release branches"
         required: true
+        type: string
       pr_branch_prefix:
         description: "Prefix for the PR branch name"
         required: true
+        type: string
       requirements_command:
         description: "Command to install needed packages"
         required: true
+        type: string
       unit_test_command:
         description: "Command to run unit tests"
         required: true
+        type: string
       performance_test_command:
         description: "Command to run performance tests"
         required: true
+        type: string
       docker_image:
         description: "Docker image to use"
         required: true
+        type: string
       docker_options:
         description: "Docker run options (e.g., '--gpus all' for NVIDIA or '--device=/dev/kfd' for AMD)"
         required: true
+        type: string
       platform:
         description: platform (self-hosted)
         required: true
+        type: string
 
 jobs:
   setup:
