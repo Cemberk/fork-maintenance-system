@@ -1236,7 +1236,24 @@ jobs:
           GITHUB_TOKEN: ${{ inputs.GIT_TOKEN }}
           UNIT_TEST_RESULTS: ${{ env.UNIT_TEST_RESULTS }}
           PERFORMANCE_TEST_RESULTS: ${{ env.PERFORMANCE_TEST_RESULTS }}
-  
+
+
+  clean:
+    runs-on: ${{ inputs.platform }}
+    if: ${{ always() }}
+    env:
+      #PR_NUMBER: ${{ needs.check-pr.outputs.pr-number }}
+      #CONTAINER_ID: ${{ needs.start_docker_container.outputs.CONTAINER_ID }} 
+      #pr-number: ${{ needs.check-prs.outputs.PR_NUMBER }}
+      #UPSTREAM_MAIN: ${{ needs.extract_branches.outputs.UPSTREAM_MAIN }}
+      #UPSTREAM_RELEASE: ${{ needs.extract_branches.outputs.UPSTREAM_RELEASE }}
+      #DOWNSTREAM_MAIN: ${{ needs.extract_branches.outputs.DOWNSTREAM_MAIN }}
+      DOWNSTREAM_DEVELOP: ${{ needs.extract_branches.outputs.DOWNSTREAM_DEVELOP }}
+      DOWNSTREAM_TESTING: ${{ needs.extract_branches.outputs.DOWNSTREAM_TESTING }}
+      #COMMITS: ${{ needs.extract_branches.outputs.COMMITS }}
+      #issue_number: ${{ needs.find_or_create_issue.outputs.issue_number }}
+      #rebase_approved: ${{ needs.check_comment.outputs.rebase_approved }}
+    steps:  
       - name: Clean up Docker Container and External Directory
         if: always()
         run: |
