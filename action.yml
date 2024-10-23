@@ -3,39 +3,43 @@ name: "Fork Maintenance System"
 description: "A GitHub Action to maintain forked repositories by checking for misspellings, resolving merge conflicts, running regression triage, and providing code suggestions."
 author: "Cemberk"
 
-
-inputs:
-  github_token:
-    description: "GitHub token for authentication"
-    required: true
-  upstream_repo:
-    description: "URL of the upstream repository"
-    required: true
-  schedule_json:
-    description: "Schedule JSON containing upstream and downstream release branches"
-    required: true
-  pr_branch_prefix:
-    description: "Prefix for the PR branch name"
-    required: true
-  requirements_command:
-    description: "Command to install needed packages"
-    required: true
-  unit_test_command:
-    description: "Command to run unit tests"
-    required: true
-  performance_test_command:
-    description: "Command to run performance tests"
-    required: true
-  docker_image:
-    description: "Docker image to use"
-    required: true
-  docker_options:
-    description: "Docker run options (e.g., '--gpus all' for NVIDIA or '--device=/dev/kfd' for AMD)"
-    required: true
+on:
+  workflow_call:
+    inputs:
+      github_token:
+        description: "GitHub token for authentication"
+        required: true
+      upstream_repo:
+        description: "URL of the upstream repository"
+        required: true
+      schedule_json:
+        description: "Schedule JSON containing upstream and downstream release branches"
+        required: true
+      pr_branch_prefix:
+        description: "Prefix for the PR branch name"
+        required: true
+      requirements_command:
+        description: "Command to install needed packages"
+        required: true
+      unit_test_command:
+        description: "Command to run unit tests"
+        required: true
+      performance_test_command:
+        description: "Command to run performance tests"
+        required: true
+      docker_image:
+        description: "Docker image to use"
+        required: true
+      docker_options:
+        description: "Docker run options (e.g., '--gpus all' for NVIDIA or '--device=/dev/kfd' for AMD)"
+        required: true
+      platform:
+        description: platform (self-hosted)
+        required: true
 
 jobs:
   setup:
-    using: "composite"
+    runs-on: ${{ inputs.platform }}
     outputs: #chek-prs is id: of step
       CONTAINER_ID: ${{ steps.start_docker_container.outputs.CONTAINER_ID }} 
       #pr-number: ${{ steps.check-prs.outputs.PR_NUMBER }}
@@ -285,7 +289,7 @@ jobs:
           GITHUB_TOKEN: ${{ inputs.github_token }}
   
   sync:
-    using: "composite"
+    runs-on: ${{ inputs.platform }}
     needs: setup
     outputs: #chek-prs is id: of step
       pr-number: ${{ steps.check-prs.outputs.PR_NUMBER }}
@@ -410,7 +414,7 @@ jobs:
           path: 1_PERF_TEST_RESULTS.txt
 
   develop:
-    using: "composite"
+    runs-on: ${{ inputs.platform }}
     needs: sync
     outputs: #chek-prs is id: of step
       #GIT_DIFF_URL: ${{ steps.get_artifacts_1.outputs.GIT_DIFF_URL }}
@@ -901,7 +905,7 @@ jobs:
           path: 2_PERF_TEST_RESULTS.txt
 
   test:
-    using: "composite"
+    runs-on: ${{ inputs.platform }}
     needs: [setup, develop]
     outputs: #chek-prs is id: of step
       pr-number: ${{ steps.check-prs.outputs.PR_NUMBER }}
@@ -1113,7 +1117,7 @@ jobs:
           path: 3_PERF_TEST_RESULTS.txt
   
   final:
-    using: "composite"
+    runs-on: ${{ inputs.platform }}
     needs: test
     outputs: #chek-prs is id: of step
       pr-number: ${{ steps.check-prs.outputs.PR_NUMBER }}
