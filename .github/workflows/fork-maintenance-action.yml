@@ -8,7 +8,7 @@ on:
     inputs:
       github_token:
         description: "GitHub token for authentication"
-        required: true
+        required: false
         type: string
       upstream_repo:
         description: "URL of the upstream repository"
@@ -16,7 +16,7 @@ on:
         type: string
       schedule_json:
         description: "Schedule JSON containing upstream and downstream release branches"
-        required: true
+        required: false
         type: string
       pr_branch_prefix:
         description: "Prefix for the PR branch name"
@@ -46,6 +46,12 @@ on:
         description: platform (self-hosted)
         required: true
         type: string
+    secrets:
+      github_token:
+        required: true
+      schedule_json:
+        required: true
+
 
 jobs:
   setup:
