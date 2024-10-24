@@ -150,7 +150,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GIT_TOKEN }}
   
       - name: Fetch schedule JSON
-        run: echo '${{ inputs.schedule_json }}' > schedule.json
+        run: echo '${{ secrets.schedule_json }}' > schedule.json
         shell: bash
   
       - name: Extract branch information
