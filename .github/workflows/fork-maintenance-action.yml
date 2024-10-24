@@ -196,7 +196,7 @@ jobs:
       
       - name: Fetch upstream changes
         run: |
-          git fetch upstream
+          git fetch upstream --tags
           git fetch origin '+refs/heads/*:refs/remotes/origin/*'
           git fetch upstream '+refs/heads/*:refs/remotes/upstream/*'
           git fetch --all
@@ -1040,7 +1040,8 @@ jobs:
       - name: Create new Downstream release branch from latest release
         run: |
           git remote -v
-          git checkout upstream/$UPSTREAM_RELEASE
+          #git checkout upstream/$UPSTREAM_RELEASE
+          git checkout $UPSTREAM_RELEASE
           git checkout -b $DOWNSTREAM_TESTING
           echo "BRANCH_NAME=${DOWNSTREAM_TESTING}" >> $GITHUB_ENV
         shell: bash
