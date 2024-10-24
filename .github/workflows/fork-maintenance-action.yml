@@ -1052,7 +1052,17 @@ jobs:
           for commit in "${commit_array[@]}"; do
             git cherry-pick $commit || true
           done
-          git diff origin/$BRANCH_NAME..upstream/$UPSTREAM_RELEASE > test_diff.txt
+          # Check if it's a remote branch
+          if git show-ref --verify --quiet refs/remotes/upstream/$UPSTREAM_RELEASE; then
+            UPSTREAM_REF="upstream/$UPSTREAM_RELEASE"
+          # Check if it's a tag
+          elif git show-ref --verify --quiet refs/tags/$UPSTREAM_RELEASE; then
+            UPSTREAM_REF="$UPSTREAM_RELEASE"
+          else
+            echo "Error: $UPSTREAM_RELEASE is not a valid branch or tag."
+            exit 1
+          fi
+          git diff origin/$BRANCH_NAME..$UPSTREAM_REF > test_diff.txt
         shell: bash
   
       #push new branch 
