@@ -500,10 +500,10 @@ jobs:
           DIFF_INFO="Git diff artifact URL for tmp-${DOWNSTREAM_DEVELOP}-$(date +%Y%m%d) vs ${DOWNSTREAM_DEVELOP}: $ARTIFACT_URL <br /> Compare URL on Github: $COMPARE_URL"
           UT_ARTIFACT_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts/git-ut-file-test-1"
           UNIT_TEST_INFO="### Unit Test Results for Testing Branch ${{ env.BRANCH_NAME }} <br /> \`\`\` <br /> $UT_ARTIFACT_URL <br /> \`\`\`"
-          UNIT_TEST_COMMENT="### Unit Test Results for develop ${{ env.BRANCH_NAME }} <br /> \`\`\` <br /> $(cat 1_UNIT_TEST_RESULTS.txt) <br /> \`\`\`"
+          #UNIT_TEST_COMMENT="### Unit Test Results for develop ${{ env.BRANCH_NAME }} <br /> \`\`\` <br /> $(cat 1_UNIT_TEST_RESULTS.txt) <br /> \`\`\`"
           PERF_ARTIFACT_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts/git-perf-file-test-1"
           PERF_TEST_INFO="### Performance Test Results for ${{ env.BRANCH_NAME }} <br /> \`\`\` <br /> $PERF_ARTIFACT_URL <br /> \`\`\`"
-          PERFORMANCE_TEST_COMMENT="### Performance Test Results for ${{ env.BRANCH_NAME }} <br /> \`\`\` <br /> $(cat 1_PERF_TEST_RESULTS.txt) <br /> \`\`\`"
+          #PERFORMANCE_TEST_COMMENT="### Performance Test Results for ${{ env.BRANCH_NAME }} <br /> \`\`\` <br /> $(cat 1_PERF_TEST_RESULTS.txt) <br /> \`\`\`"
   
           DIFF_INFO="Git diff artifact URL: [Download git-diff-file-test-1]($GIT_DIFF_URL)"
           UT_INFO="Unit Test Results: [Download git-ut-file-test-1]($GIT_UT_URL)"
@@ -991,14 +991,14 @@ jobs:
           DIFF_INFO="Git diff artifact URL for tmp-${DOWNSTREAM_DEVELOP}-$(date +%Y%m%d) vs ${DOWNSTREAM_DEVELOP}: $ARTIFACT_URL <br /> Compare URL on Github: $COMPARE_URL"
           UT_ARTIFACT_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts/git-ut-file-test-2"
           UNIT_TEST_INFO="### Unit Test Results for Testing Branch ${{ env.BRANCH_NAME }} <br /> \`\`\` <br /> $UT_ARTIFACT_URL <br /> \`\`\`"
-          UNIT_TEST_COMMENT="### Unit Test Results for develop ${{ env.BRANCH_NAME }} <br /> \`\`\` <br /> $(cat 2_UNIT_TEST_RESULTS.txt) <br /> \`\`\`"
+          #UNIT_TEST_COMMENT="### Unit Test Results for develop ${{ env.BRANCH_NAME }} <br /> \`\`\` <br /> $(cat 2_UNIT_TEST_RESULTS.txt) <br /> \`\`\`"
           PERF_ARTIFACT_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts/git-perf-file-test-2"
           PERF_TEST_INFO="### Performance Test Results for ${{ env.BRANCH_NAME }} <br /> \`\`\` <br /> $PERF_ARTIFACT_URL <br /> \`\`\`"
-          PERFORMANCE_TEST_COMMENT="### Performance Test Results for ${{ env.BRANCH_NAME }} <br /> \`\`\` <br /> $(cat 2_PERF_TEST_RESULTS.txt) <br /> \`\`\`"
+          #PERFORMANCE_TEST_COMMENT="### Performance Test Results for ${{ env.BRANCH_NAME }} <br /> \`\`\` <br /> $(cat 2_PERF_TEST_RESULTS.txt) <br /> \`\`\`"
 
-          DIFF_INFO="Git diff artifact URL: [Download git-diff-file-test-1]($GIT_DIFF_URL)"
-          UT_INFO="Unit Test Results: [Download git-ut-file-test-1]($GIT_UT_URL)"
-          PERF_INFO="Performance Test Results: [Download git-perf-file-test-1]($GIT_PERF_URL)"
+          DIFF_INFO="Git diff artifact URL: [Download git-diff-file-test-2]($GIT_DIFF_URL)"
+          UT_INFO="Unit Test Results: [Download git-ut-file-test-2]($GIT_UT_URL)"
+          PERF_INFO="Performance Test Results: [Download git-perf-file-test-2]($GIT_PERF_URL)"
           # Combine all parts into a single file
           {
             echo "$DIFF_INFO"
@@ -1202,14 +1202,14 @@ jobs:
           DIFF_INFO="Git diff artifact URL for Upstream Testing vs Downstream Testing: $DIFF_ARTIFACT_URL <br /> Compare URL on Github: $COMPARE_URL"
           UT_ARTIFACT_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts/git-ut-file-test-3"
           UNIT_TEST_INFO="### Unit Test Results for Testing Branch ${{ env.BRANCH_NAME }} <br /> \`\`\` <br /> $UT_ARTIFACT_URL <br /> \`\`\`"
-          UNIT_TEST_COMMENT="### Unit Test Results for Testing Branch ${{ env.BRANCH_NAME }} <br /> \`\`\` <br /> $(cat 3_UNIT_TEST_RESULTS.txt) <br /> \`\`\`"
+          #UNIT_TEST_COMMENT="### Unit Test Results for Testing Branch ${{ env.BRANCH_NAME }} <br /> \`\`\` <br /> $(cat 3_UNIT_TEST_RESULTS.txt) <br /> \`\`\`"
           PERF_ARTIFACT_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts/git-perf-file-test-3"  #TODO 
           PERF_TEST_INFO="### Performance Test Results for ${{ env.BRANCH_NAME }} <br /> \`\`\` <br /> $PERF_ARTIFACT_URL <br /> \`\`\`"
-          PERFORMANCE_TEST_COMMENT="### Performance Test Results for ${{ env.BRANCH_NAME }} <br /> \`\`\` <br /> $(cat 3_PERF_TEST_RESULTS.txt) <br /> \`\`\`"
+          #PERFORMANCE_TEST_COMMENT="### Performance Test Results for ${{ env.BRANCH_NAME }} <br /> \`\`\` <br /> $(cat 3_PERF_TEST_RESULTS.txt) <br /> \`\`\`"
 
-          DIFF_INFO="Git diff artifact URL: [Download git-diff-file-test-1]($GIT_DIFF_URL)"
-          UT_INFO="Unit Test Results: [Download git-ut-file-test-1]($GIT_UT_URL)"
-          PERF_INFO="Performance Test Results: [Download git-perf-file-test-1]($GIT_PERF_URL)"
+          DIFF_INFO="Git diff artifact URL: [Download git-diff-file-test-3]($GIT_DIFF_URL)"
+          UT_INFO="Unit Test Results: [Download git-ut-file-test-3]($GIT_UT_URL)"
+          PERF_INFO="Performance Test Results: [Download git-perf-file-test-3]($GIT_PERF_URL)"
           # Combine all parts into a single file
           {
             echo "$DIFF_INFO"
