@@ -1033,6 +1033,7 @@ jobs:
       #Downstream develop -> release
       - name: Create new Downstream release branch from latest release
         run: |
+          git remote -v
           git checkout upstream/$UPSTREAM_RELEASE
           git checkout -b $DOWNSTREAM_TESTING
           echo "BRANCH_NAME=${DOWNSTREAM_TESTING}" >> $GITHUB_ENV
