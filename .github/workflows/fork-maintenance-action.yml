@@ -255,7 +255,7 @@ jobs:
           fi
         shell: bash
         env:
-          GH_TOKEN: ${{ inputs.GIT_TOKEN }}
+          GH_TOKEN: ${{ secrets.GIT_TOKEN }}
   
       - name: Check for Comment Approval
         id: check_comment
@@ -734,7 +734,7 @@ jobs:
           echo "pr_merged=true" >> $GITHUB_ENV
         shell: bash
         env:
-          GH_TOKEN: ${{ inputs.GIT_TOKEN }}
+          GH_TOKEN: ${{ secrets.GIT_TOKEN }}
       
       - name: Rebase downstream_develop onto downstream_main
         if: env.pr_merged == 'true' && env.rebase_approved == 'true'
