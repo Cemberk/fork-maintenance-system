@@ -307,10 +307,10 @@ jobs:
   sync:
     runs-on: ${{ inputs.platform }}
     needs: setup
-    outputs: #chek-prs is id: of step
-      pr-number: ${{ steps.check-prs.outputs.PR_NUMBER }}
-      upstream-main: ${{ steps.extract_branches.outputs.UPSTREAM_MAIN }}
-      upstream-release: ${{ steps.extract_branches.outputs.UPSTREAM_RELEASE }}
+    #outputs: #chek-prs is id: of step
+      #pr-number: ${{ steps.check-prs.outputs.PR_NUMBER }}
+      #upstream-main: ${{ steps.extract_branches.outputs.UPSTREAM_MAIN }}
+      #upstream-release: ${{ steps.extract_branches.outputs.UPSTREAM_RELEASE }}
     env:
       #PR_NUMBER: ${{ needs.check-pr.outputs.pr-number }}
       CONTAINER_ID: ${{ needs.setup.outputs.CONTAINER_ID }} 
@@ -332,8 +332,6 @@ jobs:
           echo "BRANCH_NAME=${{ env.DOWNSTREAM_MAIN }}" >> $GITHUB_ENV
           git diff origin/${{ env.DOWNSTREAM_MAIN }}..upstream/${{ env.UPSTREAM_MAIN }} > sync_diff.txt
         shell: bash
-        env:
-          DOWNSTREAM_MAIN: ${{ needs.setup.extract_branches.outputs.DOWNSTREAM_MAIN }}
   
       - name: Rebase upstream main into downstream main
         run: |
