@@ -275,6 +275,12 @@ jobs:
       
               username=$(_jq '.author.login')
               comment_body=$(_jq '.body')
+
+              # Skip bot accounts
+              if [[ "$username" == "github-actions" || "$username" == *"[bot]" ]]; then
+                  echo "Skipping permission check for bot user: $username"
+                  continue
+              fi
               
               # Get the user's permissions for the repository
               permission=$(gh api "repos/$REPO_OWNER/$REPO_NAME/collaborators/$username/permission" --jq '.permission')
