@@ -1240,6 +1240,12 @@ jobs:
 
   clean:
     runs-on: ${{ inputs.platform }}
+    needs:
+      - setup
+      - sync
+      - develop
+      - test
+      - final
     if: ${{ always() }}
     env:
       #PR_NUMBER: ${{ needs.check-pr.outputs.pr-number }}
