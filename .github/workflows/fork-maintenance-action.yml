@@ -329,9 +329,11 @@ jobs:
         run: |
           git checkout ${{ env.DOWNSTREAM_MAIN }} # || git checkout -b ${{ env.DOWNSTREAM_MAIN }} upstream/${{ env.UPSTREAM_MAIN }}
           git pull origin ${{ env.DOWNSTREAM_MAIN }}
-          echo "BRANCH_NAME=${DOWNSTREAM_MAIN}" >> $GITHUB_ENV
+          echo "BRANCH_NAME=${{ env.DOWNSTREAM_MAIN }}" >> $GITHUB_ENV
           git diff origin/${{ env.DOWNSTREAM_MAIN }}..upstream/${{ env.UPSTREAM_MAIN }} > sync_diff.txt
         shell: bash
+        env:
+          DOWNSTREAM_MAIN: ${{ needs.extract_branches.outputs.DOWNSTREAM_MAIN }}
   
       - name: Rebase upstream main into downstream main
         run: |
