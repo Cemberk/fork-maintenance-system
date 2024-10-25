@@ -491,6 +491,7 @@ jobs:
           echo "GIT_DIFF_URL=$git_diff_url" >> $GITHUB_ENV
           echo "GIT_UT_URL=$git_ut_url" >> $GITHUB_ENV
           echo "GIT_PERF_URL=$git_perf_url" >> $GITHUB_ENV
+          echo ${{ env.rebase_approved }}
         shell: bash
         env:
           GITHUB_TOKEN: ${{ secrets.GIT_TOKEN }}
