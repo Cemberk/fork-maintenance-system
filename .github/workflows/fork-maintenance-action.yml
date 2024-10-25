@@ -1062,7 +1062,8 @@ jobs:
             echo "Error: $UPSTREAM_RELEASE is not a valid branch or tag."
             exit 1
           fi
-          git diff origin/$BRANCH_NAME..$UPSTREAM_REF > test_diff.txt
+          #git diff origin/$BRANCH_NAME..$UPSTREAM_REF > test_diff.txt
+          git diff $BRANCH_NAME..$UPSTREAM_REF > test_diff.txt
         shell: bash
   
       #push new branch 
