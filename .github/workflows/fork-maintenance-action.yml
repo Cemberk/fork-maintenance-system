@@ -1255,6 +1255,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GIT_TOKEN }}
           UNIT_TEST_RESULTS: ${{ env.UNIT_TEST_RESULTS }}
           PERFORMANCE_TEST_RESULTS: ${{ env.PERFORMANCE_TEST_RESULTS }}
+          rebase_approved: ${{ needs.setup.outputs.rebase_approved }}
 
 
   clean:
