@@ -540,6 +540,7 @@ jobs:
           GIT_DIFF_URL: ${{ env.GIT_DIFF_URL }}
           GIT_UT_URL: ${{ env.GIT_UT_URL }}
           GIT_PERF_URL: ${{ env.GIT_PERF_URL }}
+          rebase_approved: ${{ env.rebase_approved }}
   
   
       #rebase from main to develop 
@@ -574,6 +575,8 @@ jobs:
           echo "BRANCH_NAME=${BRANCH_NAME}" >> $GITHUB_ENV
           git diff origin/$BRANCH_NAME..origin/$DOWNSTREAM_DEVELOP > develop_diff.txt
         shell: bash
+        env:
+          rebase_approved: ${{ env.rebase_approved }}
   
   
       #- name: Checkout downstream main branch
