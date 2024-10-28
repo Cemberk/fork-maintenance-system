@@ -577,7 +577,8 @@ jobs:
           # Attempt to rebase onto downstream main
           git rebase origin/${DOWNSTREAM_MAIN} || true
           echo "BRANCH_NAME=${BRANCH_NAME}" >> $GITHUB_ENV
-          git diff origin/$BRANCH_NAME..origin/$DOWNSTREAM_DEVELOP > develop_diff.txt
+          #git diff origin/$BRANCH_NAME..origin/$DOWNSTREAM_DEVELOP > develop_diff.txt
+          git diff $BRANCH_NAME..origin/$DOWNSTREAM_DEVELOP > develop_diff.txt
         shell: bash
         env:
           rebase_approved: ${{ env.rebase_approved }}
