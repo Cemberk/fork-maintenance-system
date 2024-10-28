@@ -333,7 +333,7 @@ jobs:
   
       - name: Checkout and update downstream main
         run: |
-          echo
+          echo ${{ env.rebase_approved }}
           git checkout ${{ env.DOWNSTREAM_MAIN }} # || git checkout -b ${{ env.DOWNSTREAM_MAIN }} upstream/${{ env.UPSTREAM_MAIN }}
           git pull origin ${{ env.DOWNSTREAM_MAIN }}
           echo "BRANCH_NAME=${{ env.DOWNSTREAM_MAIN }}" >> $GITHUB_ENV
