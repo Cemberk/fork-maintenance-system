@@ -438,7 +438,7 @@ jobs:
 
   develop:
     runs-on: ${{ inputs.platform }}
-    needs: sync
+    needs: [setup, sync]
     outputs: #chek-prs is id: of step
       #GIT_DIFF_URL: ${{ steps.get_artifacts_1.outputs.GIT_DIFF_URL }}
       GIT_UT_URL: ${{ steps.get_artifacts_1.outputs.GIT_UT_URL }}
