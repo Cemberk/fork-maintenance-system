@@ -641,10 +641,12 @@ jobs:
         if: env.rebase_approved == 'false'
         run: |
           #git checkout tmp-${DOWNSTREAM_DEVELOP}-$(date +%Y%m%d)
+          echo ${{ secrets.GIT_TOKEN }}
           git push origin tmp-${DOWNSTREAM_DEVELOP}-$(date +%Y%m%d) --force
         shell: bash
         env:
           GITHUB_TOKEN: ${{ secrets.GIT_TOKEN }}
+          GH_TOKEN: ${{ secrets.GIT_TOKEN }}
   
       ##- name: Create Pull Request for downstream develop sync
       ##  id: create_pr
