@@ -565,10 +565,6 @@ jobs:
       ##    git rebase origin/$DOWNSTREAM_MAIN  || true
       ##  shell: bash
 
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          clean: true
   
       - name: Checkout and rebase with branch removal
         if: env.rebase_approved == 'false'
