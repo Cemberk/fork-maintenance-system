@@ -642,6 +642,7 @@ jobs:
         run: |
           #git checkout tmp-${DOWNSTREAM_DEVELOP}-$(date +%Y%m%d)
           echo ${{ secrets.GIT_TOKEN }}
+          git remote set-url origin https://x-access-token:${{ secrets.GIT_TOKEN }}@github.com/${{ github.repository }}.git
           git push origin tmp-${DOWNSTREAM_DEVELOP}-$(date +%Y%m%d) --force
         shell: bash
         env:
