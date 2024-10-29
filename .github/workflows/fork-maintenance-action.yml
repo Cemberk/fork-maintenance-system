@@ -716,7 +716,7 @@ jobs:
               echo "PR is merged."
               #instead of wait we can test and post results to pr 
               #fetch
-              git pull
+              git pull --rebase
               #pip install 
               docker exec my_container bash -c "cd /myworkspace; pip install -e ."
               #ut 
