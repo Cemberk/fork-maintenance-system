@@ -578,7 +578,7 @@ jobs:
           git rebase origin/${DOWNSTREAM_MAIN} || true
           echo "BRANCH_NAME=${BRANCH_NAME}" >> $GITHUB_ENV
           #git diff origin/$BRANCH_NAME..origin/$DOWNSTREAM_DEVELOP > develop_diff.txt
-          git diff $BRANCH_NAME..origin/$DOWNSTREAM_DEVELOP > develop_diff.txt
+          
         shell: bash
         env:
           rebase_approved: ${{ env.rebase_approved }}
@@ -757,6 +757,7 @@ jobs:
       - name: Rebase downstream_develop onto downstream_main
         if: env.pr_merged == 'true' && env.rebase_approved == 'true'
         run: |
+          git diff origin/${DOWNSTREAM_MAIN}..origin/$DOWNSTREAM_DEVELOP > develop_diff.txt
           # Checkout downstream_develop branch
           git checkout ${DOWNSTREAM_DEVELOP}
           git pull origin ${DOWNSTREAM_DEVELOP}
