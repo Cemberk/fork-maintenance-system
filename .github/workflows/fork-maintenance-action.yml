@@ -716,7 +716,13 @@ jobs:
               echo "PR is merged."
               #instead of wait we can test and post results to pr 
               #fetch
-              git pull --rebase
+              #git pull --rebase
+
+              git fetch origin
+              # Reset your local branch to match the upstream branch
+              git checkout ${DOWNSTREAM_DEVELOP}
+              git reset --hard origin/${DOWNSTREAM_DEVELOP}
+              
               #pip install 
               docker exec my_container bash -c "cd /myworkspace; pip install -e ."
               #ut 
