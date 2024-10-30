@@ -629,6 +629,7 @@ jobs:
       - name: Handle Rebase Conflicts
         if: env.conflicts == 'true' && env.rebase_approved == 'false'
         run: |
+          git status
           echo "Aborting rebase due to conflicts."
           git rebase --abort
           git merge origin/${DOWNSTREAM_MAIN} || true
