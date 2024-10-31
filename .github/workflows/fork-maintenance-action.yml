@@ -630,10 +630,16 @@ jobs:
         if: env.conflicts == 'true' && env.rebase_approved == 'false'
         run: |
           git status
+          git log -5
+          #git rebase --continue || true  # Attempt to continue if any steps were missed.
+          
           echo "Aborting rebase due to conflicts."
           git rebase --abort
           git merge origin/${DOWNSTREAM_MAIN} || true
           git add -A
+          for file in $(git diff --name-only --diff-filter=U); do
+            git add $file
+          done
           git commit -m "Merge downstream main into ${BRANCH_NAME} with conflicts"
         shell: bash
   
