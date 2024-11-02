@@ -640,7 +640,7 @@ jobs:
           for file in $(git diff --name-only --diff-filter=U); do
             git add $file
           done
-          git commit -m "Merge downstream main into ${BRANCH_NAME} with conflicts"
+          git commit -m "Merge downstream main into ${BRANCH_NAME} with conflicts" || true
         shell: bash
   
       #push the rebased branch to develop 
