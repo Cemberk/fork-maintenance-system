@@ -1074,7 +1074,7 @@ jobs:
   
       - name: Cherry-pick specific commits from develop to release
         run: |
-          IFS=',' read -r -a commit_array <<< "$COMMITS"
+          IFS=',' read -r -a commit_array <<< "${COMMITS}"
           for commit in "${commit_array[@]}"; do
             git cherry-pick $commit || true
           done
