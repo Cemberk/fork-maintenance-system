@@ -1238,7 +1238,6 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GIT_TOKEN }}
   
       - name: Append Test Results to Issue
-        if: env.rebase_approved == 'false'
         run: |
           REPO_OWNER=$(echo $GITHUB_REPOSITORY | cut -d'/' -f1)
           REPO_NAME=$(echo $GITHUB_REPOSITORY | cut -d'/' -f2)
