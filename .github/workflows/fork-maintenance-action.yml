@@ -727,7 +727,7 @@ jobs:
 
               git fetch origin
               # Reset your local branch to match the upstream branch
-              git checkout ${DOWNSTREAM_DEVELOP}
+              git checkout origin/${DOWNSTREAM_DEVELOP}
               git reset --hard origin/${DOWNSTREAM_DEVELOP}
               
               #pip install 
@@ -772,7 +772,7 @@ jobs:
         run: |
           git diff origin/${DOWNSTREAM_MAIN}..origin/$DOWNSTREAM_DEVELOP > develop_diff.txt
           # Checkout downstream_develop branch
-          git checkout ${DOWNSTREAM_DEVELOP}
+          git checkout origin/${DOWNSTREAM_DEVELOP}
           git pull origin ${DOWNSTREAM_DEVELOP}
       
           # Rebase onto downstream_main
