@@ -537,7 +537,7 @@ runs:
             echo ""
             echo "$PERFORMANCE_TEST_COMMENT"
           } > comment_body.txt
-          
+          export DEBUG=api
           # Use --body-file to pass the comment body
           retry gh issue comment ${{ env.issue_number }} --body-file comment_body.txt --repo "$REPO_OWNER/$REPO_NAME"
   
