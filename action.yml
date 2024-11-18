@@ -522,7 +522,7 @@ runs:
           } > comment_body.txt
           
           # Use --body-file to pass the comment body
-          gh issue comment ${{ env.issue_number }} --body-file comment_body.txt --repo "$REPO_OWNER/$REPO_NAME"
+          gh issue comment ${{ env.issue_number }} --body-file comment_body.txt --repo "$REPO_OWNER/$REPO_NAME" --verbose
   
           #gh issue comment ${{ env.issue_number }} --body "$DIFF_INFO <br /> <br /> $UNIT_TEST_COMMENT <br /> <br /> $PERFORMANCE_TEST_COMMENT" --repo "$REPO_OWNER/$REPO_NAME"
           rm -rf 1_UNIT_TEST_RESULTS.txt
@@ -738,7 +738,7 @@ runs:
               #append to issue
               UNIT_TEST_COMMENT="### Unit Test Results for Automated PR ${{ env.BRANCH_NAME }} <br /> <br /> $(cat UNIT_TEST_RESULTS.txt) <br /> "
               PERFORMANCE_TEST_COMMENT="### Performance Test Results for Automated PR ${{ env.BRANCH_NAME }} <br /> <br /> $(cat PERF_TEST_RESULTS.txt) <br /> "
-              gh issue comment ${{ env.issue_number }} --body "$UNIT_TEST_COMMENT <br /> <br /> $PERFORMANCE_TEST_COMMENT" --repo "$REPO_OWNER/$REPO_NAME"
+              gh issue comment ${{ env.issue_number }} --body "$UNIT_TEST_COMMENT <br /> <br /> $PERFORMANCE_TEST_COMMENT" --repo "$REPO_OWNER/$REPO_NAME" --verbose
               rm -rf UNIT_TEST_RESULTS.txt
               rm -rf PERF_TEST_RESULTS.txt
               sudo rm -rf reports/
@@ -1052,7 +1052,7 @@ runs:
             echo "$PERFORMANCE_TEST_COMMENT"
           } > comment_body.txt
           # Use --body-file to pass the comment body
-          gh issue comment ${{ env.issue_number }} --body-file comment_body.txt --repo "$REPO_OWNER/$REPO_NAME"
+          gh issue comment ${{ env.issue_number }} --body-file comment_body.txt --repo "$REPO_OWNER/$REPO_NAME" --verbose
   
   
           # Combine all parts into a single file
@@ -1287,7 +1287,7 @@ runs:
             echo "$PERFORMANCE_TEST_COMMENT"
           } > comment_body.txt
           # Use --body-file to pass the comment body
-          gh issue comment ${{ env.issue_number }} --body-file comment_body.txt --repo "$REPO_OWNER/$REPO_NAME"
+          gh issue comment ${{ env.issue_number }} --body-file comment_body.txt --repo "$REPO_OWNER/$REPO_NAME" --verbose
   
           # Combine all parts into a single file
           #echo -e "$DIFF_INFO <br /> <br /> $UNIT_TEST_INFO <br /> <br /> $PERF_TEST_INFO" > comment_body.txt
