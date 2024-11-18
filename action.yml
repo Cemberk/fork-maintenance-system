@@ -731,6 +731,7 @@ runs:
               # Reset your local branch to match the upstream branch
               git checkout origin/${DOWNSTREAM_DEVELOP}
               git reset --hard origin/${DOWNSTREAM_DEVELOP}
+              git diff origin/${DOWNSTREAM_MAIN}..origin/$DOWNSTREAM_DEVELOP > develop_diff.txt
               
               #pip install 
               docker exec my_container bash -c "cd /myworkspace; pip install -e ."
@@ -782,7 +783,7 @@ runs:
       - name: Rebase downstream_develop onto downstream_main
         if: env.pr_merged == 'true' && env.rebase_approved == 'true'
         run: |
-          git diff origin/${DOWNSTREAM_MAIN}..origin/$DOWNSTREAM_DEVELOP > develop_diff.txt
+          #git diff origin/${DOWNSTREAM_MAIN}..origin/$DOWNSTREAM_DEVELOP > develop_diff.txt
           # Checkout downstream_develop branch
           git checkout origin/${DOWNSTREAM_DEVELOP}
           git pull origin ${DOWNSTREAM_DEVELOP}
