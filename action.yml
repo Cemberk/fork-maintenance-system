@@ -480,6 +480,23 @@ runs:
       - name: Append Test Results to Issue
         if: env.rebase_approved == 'false'
         run: |
+          function retry {
+            local n=1
+            local max=5
+            local delay=5
+            while true; do
+              "$@" && break || {
+                if [[ $n -lt $max ]]; then
+                  ((n++))
+                  echo "Command failed. Attempt $n/$max:"
+                  sleep $delay;
+                else
+                  echo "Command failed after $n attempts."
+                  return 1
+                fi
+              }
+            done
+          }
           REPO_OWNER=$(echo $GITHUB_REPOSITORY | cut -d'/' -f1)
           REPO_NAME=$(echo $GITHUB_REPOSITORY | cut -d'/' -f2)
           DIFF_ARTIFACT_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts/git-diff-file-test-1"
@@ -522,7 +539,7 @@ runs:
           } > comment_body.txt
           
           # Use --body-file to pass the comment body
-          gh issue comment ${{ env.issue_number }} --body-file comment_body.txt --repo "$REPO_OWNER/$REPO_NAME"
+          retry gh issue comment ${{ env.issue_number }} --body-file comment_body.txt --repo "$REPO_OWNER/$REPO_NAME"
   
           #gh issue comment ${{ env.issue_number }} --body "$DIFF_INFO <br /> <br /> $UNIT_TEST_COMMENT <br /> <br /> $PERFORMANCE_TEST_COMMENT" --repo "$REPO_OWNER/$REPO_NAME"
           rm -rf 1_UNIT_TEST_RESULTS.txt
