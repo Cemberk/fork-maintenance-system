@@ -641,10 +641,22 @@ runs:
           git rebase --abort
           git merge origin/${DOWNSTREAM_MAIN} || true
           git add -A
-          for file in $(git diff --name-only --diff-filter=U); do
-            git add $file
-          done
-          git commit -m "Merge downstream main into ${BRANCH_NAME} with conflicts"
+          # Check for unmerged paths (conflicts)
+          if git status | grep -q "Unmerged paths"; then
+            for file in $(git diff --name-only --diff-filter=U); do
+              git add $file
+            done
+          else
+            echo "No conflicts to commit."
+          fi
+          #git commit -m "Merge downstream main into ${BRANCH_NAME} with conflicts"
+          
+          # Check if there are changes to commit
+          if ! git diff-index --quiet HEAD --; then
+            git commit -m "Merge downstream main into $BRANCH_NAME with conflicts"
+          else
+            echo "No changes to commit."
+          fi
         shell: bash
   
       #push the rebased branch to develop 
