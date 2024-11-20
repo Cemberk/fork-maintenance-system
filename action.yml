@@ -639,7 +639,7 @@ runs:
         run: |
           echo "Aborting rebase due to conflicts."
           git rebase --abort
-          git merge origin/${DOWNSTREAM_MAIN} || true
+          git merge --no-commit origin/${DOWNSTREAM_MAIN} || true
           git add -A
           for file in $(git diff --name-only --diff-filter=U); do
             git add $file
