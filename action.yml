@@ -323,7 +323,8 @@ runs:
       - name: Rebase upstream main into downstream main
         run: |
           git status
-          git rebase upstream/${{ env.UPSTREAM_MAIN }} || true
+          #git rebase upstream/${{ env.UPSTREAM_MAIN }} || true
+          git merge upstream/${{ env.UPSTREAM_MAIN }} || true
           #git checkout -b ${{ inputs.pr_branch_prefix }}-sync-test-$(date +%Y%m%d)
           #git push origin ${{ inputs.pr_branch_prefix }}-sync-test-$(date +%Y%m%d)
         shell: bash
@@ -586,7 +587,8 @@ runs:
           # Create new branch from downstream develop
           git checkout -b $BRANCH_NAME origin/${DOWNSTREAM_DEVELOP}
           # Attempt to rebase onto downstream main
-          git rebase origin/${DOWNSTREAM_MAIN} || true
+          #git rebase origin/${DOWNSTREAM_MAIN} || true
+          git merge origin/${DOWNSTREAM_MAIN} || true
           echo "BRANCH_NAME=${BRANCH_NAME}" >> $GITHUB_ENV
           #git diff origin/$BRANCH_NAME..origin/$DOWNSTREAM_DEVELOP > develop_diff.txt
         shell: bash
@@ -638,7 +640,8 @@ runs:
         if: env.conflicts == 'true' && env.rebase_approved == 'false'
         run: |
           echo "Aborting rebase due to conflicts."
-          git rebase --abort
+          #git rebase --abort
+          git merge --abort
           git merge --no-commit origin/${DOWNSTREAM_MAIN} || true
           git add -A
           for file in $(git diff --name-only --diff-filter=U); do
@@ -791,7 +794,8 @@ runs:
           git pull origin ${DOWNSTREAM_DEVELOP}
       
           # Rebase onto downstream_main
-          git rebase origin/${DOWNSTREAM_MAIN}
+          #git rebase origin/${DOWNSTREAM_MAIN}
+          git merge origin/${DOWNSTREAM_MAIN}
       
           # Push the rebased branch
           git push origin ${DOWNSTREAM_DEVELOP} --force-with-lease
