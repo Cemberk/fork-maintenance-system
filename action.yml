@@ -323,7 +323,7 @@ runs:
       - name: Rebase upstream main into downstream main
         run: |
           git status
-          #git rebase upstream/${{ env.UPSTREAM_MAIN }} || true
+          #git rebase upstream/${{ env.UPSTREAM_MAIN }} || true # - this changes commit history from upstream 
           git merge upstream/${{ env.UPSTREAM_MAIN }} || true
           #git checkout -b ${{ inputs.pr_branch_prefix }}-sync-test-$(date +%Y%m%d)
           #git push origin ${{ inputs.pr_branch_prefix }}-sync-test-$(date +%Y%m%d)
@@ -578,7 +578,7 @@ runs:
       ##    git rebase origin/$DOWNSTREAM_MAIN  || true
       ##  shell: bash
   
-      - name: Checkout and rebase with branch removal
+      - name: Checkout and rebase with branch removal (temp branch to downstream main)
         if: env.rebase_approved == 'false'
         run: |
           BRANCH_NAME=tmp-${DOWNSTREAM_DEVELOP}-$(date +%Y%m%d)
@@ -587,8 +587,8 @@ runs:
           # Create new branch from downstream develop
           git checkout -b $BRANCH_NAME origin/${DOWNSTREAM_DEVELOP}
           # Attempt to rebase onto downstream main
-          #git rebase origin/${DOWNSTREAM_MAIN} || true
-          git merge origin/${DOWNSTREAM_MAIN} || true
+          git rebase origin/${DOWNSTREAM_MAIN} || true # need rebase to properly apply changes with forked differences 
+          #git merge origin/${DOWNSTREAM_MAIN} || true
           echo "BRANCH_NAME=${BRANCH_NAME}" >> $GITHUB_ENV
           #git diff origin/$BRANCH_NAME..origin/$DOWNSTREAM_DEVELOP > develop_diff.txt
         shell: bash
@@ -640,8 +640,8 @@ runs:
         if: env.conflicts == 'true' && env.rebase_approved == 'false'
         run: |
           echo "Aborting rebase due to conflicts."
-          #git rebase --abort
-          git merge --abort
+          git rebase --abort
+          #git merge --abort
           git merge --no-commit origin/${DOWNSTREAM_MAIN} || true
           git add -A
           for file in $(git diff --name-only --diff-filter=U); do
@@ -794,8 +794,8 @@ runs:
           git pull origin ${DOWNSTREAM_DEVELOP}
       
           # Rebase onto downstream_main
-          #git rebase origin/${DOWNSTREAM_MAIN}
-          git merge origin/${DOWNSTREAM_MAIN}
+          git rebase origin/${DOWNSTREAM_MAIN}
+          #git merge origin/${DOWNSTREAM_MAIN}
       
           # Push the rebased branch
           git push origin ${DOWNSTREAM_DEVELOP} --force-with-lease
