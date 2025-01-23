@@ -653,7 +653,10 @@ runs:
           #  git add $file
           #done
           git add --all
-          git rebase --continue
+          #git rebase --continue
+          # Bypass the editor
+          git -c core.editor=true rebase --continue
+          # or GIT_EDITOR=true GIT_SEQUENCE_EDITOR=true git rebase --continue
           git commit -m "Merge downstream main into ${BRANCH_NAME} with conflicts"
         shell: bash
   
