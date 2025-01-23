@@ -135,6 +135,10 @@ runs:
         shell: bash
         env:
           GITHUB_TOKEN: ${{ inputs.github_token }}
+
+      - name: Install jq
+        run: apt-get update && apt-get install -y jq
+        shell: bash
   
       - name: Fetch schedule JSON
         run: echo '${{ inputs.schedule_json }}' > schedule.json
