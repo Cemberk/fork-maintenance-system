@@ -644,7 +644,7 @@ runs:
         if: env.conflicts == 'true' && env.rebase_approved == 'false'
         run: |
           echo "We found rebase conflicts. Committing conflict markers so a PR can be opened."
-          git rebase --continue --no-edit
+          git rebase --continue
           #echo "Aborting rebase due to conflicts."
           #git rebase --abort
           #git merge --abort
