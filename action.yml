@@ -643,14 +643,17 @@ runs:
       - name: Handle Rebase Conflicts
         if: env.conflicts == 'true' && env.rebase_approved == 'false'
         run: |
-          echo "Aborting rebase due to conflicts."
-          git rebase --abort
+          echo "We found rebase conflicts. Committing conflict markers so a PR can be opened."
+          git rebase --continue --no-edit
+          #echo "Aborting rebase due to conflicts."
+          #git rebase --abort
           #git merge --abort
-          git merge --no-commit origin/${DOWNSTREAM_MAIN} || true
-          git add -A
-          for file in $(git diff --name-only --diff-filter=U); do
-            git add $file
-          done
+          #git merge --no-commit origin/${DOWNSTREAM_MAIN} || true
+          #git add -A
+          #for file in $(git diff --name-only --diff-filter=U); do
+          #  git add $file
+          #done
+          git add --all
           git commit -m "Merge downstream main into ${BRANCH_NAME} with conflicts"
         shell: bash
   
