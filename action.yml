@@ -644,7 +644,6 @@ runs:
         if: env.conflicts == 'true' && env.rebase_approved == 'false'
         run: |
           echo "We found rebase conflicts. Committing conflict markers so a PR can be opened."
-          git rebase --continue
           #echo "Aborting rebase due to conflicts."
           #git rebase --abort
           #git merge --abort
@@ -654,6 +653,7 @@ runs:
           #  git add $file
           #done
           git add --all
+          git rebase --continue
           git commit -m "Merge downstream main into ${BRANCH_NAME} with conflicts"
         shell: bash
   
