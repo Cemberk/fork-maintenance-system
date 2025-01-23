@@ -137,7 +137,7 @@ runs:
           GITHUB_TOKEN: ${{ inputs.github_token }}
 
       - name: Install jq
-        run: apt-get update && apt-get install -y jq
+        run: sudo apt-get update && sudo apt-get install -y jq
         shell: bash
   
       - name: Fetch schedule JSON
