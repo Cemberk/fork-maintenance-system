@@ -1,0 +1,194 @@
+name: Develop Workflow
+on:
+  workflow_call:
+    inputs:
+      github_token:
+        required: true
+        type: string
+      unit_test_command:
+        required: true
+        type: string
+      performance_test_command:
+        required: true
+        type: string
+      platform:
+        required: false
+        type: string
+        default: "ubuntu-latest"
+      container_id:
+        required: true
+        type: string
+      issue_number:
+        required: true
+        type: string
+      rebase_approved:
+        required: true
+        type: string
+      downstream_develop:
+        required: true
+        type: string
+      downstream_main:
+        required: true
+        type: string
+      pr_branch_prefix:
+        required: true
+        type: string
+
+jobs:
+  develop:
+    runs-on: ${{ inputs.platform }}
+    outputs:
+      pr_merged: ${{ steps.create_pr.outputs.pr_merged }}
+      conflicts: ${{ steps.check_conflicts.outputs.conflicts }}
+    
+    steps:
+      - name: Checkout and rebase with branch removal
+        if: inputs.rebase_approved == 'false'
+        run: |
+          BRANCH_NAME=tmp-${{ inputs.downstream_develop }}-$(date +%Y%m%d)
+          # Delete existing branch if it exists
+          git branch -D $BRANCH_NAME || true
+          # Create new branch from downstream develop
+          git checkout -b $BRANCH_NAME origin/${{ inputs.downstream_develop }}
+          # Attempt to rebase onto downstream main
+          git rebase origin/${{ inputs.downstream_main }} || true
+          echo "BRANCH_NAME=${BRANCH_NAME}" >> $GITHUB_ENV
+        shell: bash
+
+      - name: Check for rebase conflicts
+        id: check_conflicts
+        run: |
+          if git status | grep -q "Unmerged paths"; then
+            echo "Rebase conflicts detected."
+            echo "conflicts=true" >> $GITHUB_ENV
+            echo "conflicts=true" >> $GITHUB_OUTPUT
+          else
+            echo "No rebase conflicts."
+            echo "conflicts=false" >> $GITHUB_ENV
+            echo "conflicts=false" >> $GITHUB_OUTPUT
+          fi
+        shell: bash
+
+      - name: Handle Rebase Conflicts
+        if: env.conflicts == 'true' && inputs.rebase_approved == 'false'
+        run: |
+          echo "We found rebase conflicts. Committing conflict markers so a PR can be opened."
+          git add --all
+          git -c core.editor=true rebase --continue
+          git commit -m "Merge downstream main into ${BRANCH_NAME} with conflicts"
+        shell: bash
+
+      - name: Push rebased branch
+        if: inputs.rebase_approved == 'false'
+        run: |
+          git remote set-url origin https://x-access-token:${{ inputs.github_token }}@github.com/${{ github.repository }}.git
+          git push origin $BRANCH_NAME --force
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ inputs.github_token }}
+
+      - name: Check for changes and create PR if necessary
+        id: create_pr
+        if: inputs.rebase_approved == 'false'
+        run: |
+          git fetch origin
+          if git diff --quiet origin/${{ inputs.downstream_develop }}..HEAD; then
+            echo "No changes detected after rebase. Skipping PR creation."
+            echo "pr_merged=true" >> $GITHUB_ENV
+            echo "pr_merged=true" >> $GITHUB_OUTPUT
+          else
+            REPO_OWNER=$(echo $GITHUB_REPOSITORY | cut -d'/' -f1)
+            REPO_NAME=$(echo $GITHUB_REPOSITORY | cut -d'/' -f2)
+            PR_URL=$(gh pr create --repo "$REPO_OWNER/$REPO_NAME" \
+              --title "Automated PR: Downstream develop rebase new changes" \
+              --body "This PR was created automatically by the Fork Maintenance System to sync changes from the downstream main into downstream develop." \
+              --base ${{ inputs.downstream_develop }} \
+              --head $REPO_OWNER:$BRANCH_NAME)
+            PR_NUMBER=$(echo $PR_URL | awk -F '/' '{print $NF}')
+            echo "PR_URL=$PR_URL" >> $GITHUB_ENV
+            echo "PR_NUMBER=$PR_NUMBER" >> $GITHUB_ENV
+            echo "pr_merged=false" >> $GITHUB_ENV
+            echo "pr_merged=false" >> $GITHUB_OUTPUT
+          fi
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ inputs.github_token }}
+
+      - name: Wait for PR to be merged
+        if: env.pr_merged == 'false' && inputs.rebase_approved == 'false'
+        run: |
+          PR_NUMBER=${{ env.PR_NUMBER }}
+          MAX_WAIT_TIME=$((60 * 60 * 6))  # 6 hours in seconds
+          START_TIME=$(date +%s)
+          REPO_OWNER=$(echo $GITHUB_REPOSITORY | cut -d'/' -f1)
+          REPO_NAME=$(echo $GITHUB_REPOSITORY | cut -d'/' -f2)
+          
+          while true; do
+            PR_STATE=$(gh pr view $PR_NUMBER --json state --jq '.state' --repo "$REPO_OWNER/$REPO_NAME")
+            echo "Current PR state: $PR_STATE"
+            
+            if [ "$PR_STATE" = "MERGED" ]; then
+              echo "PR is merged."
+              git fetch origin
+              git checkout origin/${{ inputs.downstream_develop }}
+              git reset --hard origin/${{ inputs.downstream_develop }}
+              git diff origin/${{ inputs.downstream_main }}..origin/${{ inputs.downstream_develop }} > develop_diff.txt
+              
+              # Run tests
+              docker exec my_container bash -c "cd /myworkspace; pip install -e ."
+              echo "Running unit tests inside Docker..."
+              docker exec my_container bash -c "cd /myworkspace; ${{ inputs.unit_test_command }} 2>&1 | tee /myworkspace/2_UNIT_TEST_RESULTS.txt"
+              echo "Running performance tests inside Docker..."
+              docker exec my_container bash -c "cd /myworkspace; ${{ inputs.performance_test_command }} 2>&1 | tee /myworkspace/2_PERF_TEST_RESULTS.txt"
+              
+              # Append results to issue
+              echo "Aggregated Unit Test Summary:" > unit_test_summary.txt
+              find reports -name stats.txt -exec grep '^=' {} \; | awk '
+                /passed/ {passed += $2}
+                /failed/ {failed += $2}
+                /skipped/ {skipped += $2}
+                /deselected/ {deselected += $2}
+                /warnings/ {warnings += $2}
+                END {
+                  print passed " passed, " failed " failed, " skipped " skipped, " deselected " deselected, " warnings " warnings"
+                }' >> unit_test_summary.txt
+              
+              UNIT_TEST_COMMENT="### Unit Test Results for Automated PR ${{ env.BRANCH_NAME }}\n\n$(cat unit_test_summary.txt)"
+              PERFORMANCE_TEST_COMMENT="### Performance Test Results for Automated PR ${{ env.BRANCH_NAME }}\n\n$(cat 2_PERF_TEST_RESULTS.txt)"
+              
+              gh issue comment ${{ inputs.issue_number }} --body "$UNIT_TEST_COMMENT\n\n$PERFORMANCE_TEST_COMMENT" --repo "$REPO_OWNER/$REPO_NAME"
+              
+              # Cleanup
+              rm -rf 2_UNIT_TEST_RESULTS.txt 2_PERF_TEST_RESULTS.txt develop_diff.txt unit_test_summary.txt
+              sudo rm -rf reports/
+              break
+            elif [ "$PR_STATE" = "CLOSED" ]; then
+              echo "PR is closed without merging."
+              exit 1
+            else
+              echo "PR is not merged yet. Waiting for 5 minutes..."
+              sleep 300
+            fi
+            
+            CURRENT_TIME=$(date +%s)
+            ELAPSED_TIME=$((CURRENT_TIME - START_TIME))
+            if [ "$ELAPSED_TIME" -ge "$MAX_WAIT_TIME" ]; then
+              echo "Maximum wait time exceeded. Exiting."
+              exit 1
+            fi
+          done
+          echo "pr_merged=true" >> $GITHUB_ENV
+        shell: bash
+        env:
+          GH_TOKEN: ${{ inputs.github_token }}
+
+      - name: Rebase downstream_develop onto downstream_main
+        if: env.pr_merged == 'true' && inputs.rebase_approved == 'true'
+        run: |
+          git checkout origin/${{ inputs.downstream_develop }}
+          git pull origin ${{ inputs.downstream_develop }}
+          git rebase origin/${{ inputs.downstream_main }}
+          git push origin ${{ inputs.downstream_develop }} --force-with-lease
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ inputs.github_token }}
