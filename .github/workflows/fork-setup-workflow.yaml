@@ -1,0 +1,103 @@
+name: Setup Workflow
+on:
+  workflow_call:
+    inputs:
+      github_token:
+        required: true
+        type: string
+      upstream_repo:
+        required: true
+        type: string
+      schedule_json:
+        required: true
+        type: string
+      docker_image:
+        required: true
+        type: string
+      docker_options:
+        required: true
+        type: string
+      platform:
+        required: false
+        type: string
+        default: "ubuntu-latest"
+      requirements_command:
+        required: true
+        type: string
+    outputs:
+      CONTAINER_ID:
+        description: "Docker container ID"
+        value: ${{ jobs.setup.outputs.CONTAINER_ID }}
+      issue_number:
+        description: "Issue number for approval"
+        value: ${{ jobs.setup.outputs.issue_number }}
+      rebase_approved:
+        description: "Rebase approval status"
+        value: ${{ jobs.setup.outputs.rebase_approved }}
+      UPSTREAM_MAIN:
+        description: "Upstream main branch"
+        value: ${{ jobs.setup.outputs.UPSTREAM_MAIN }}
+      UPSTREAM_RELEASE:
+        description: "Upstream release branch"
+        value: ${{ jobs.setup.outputs.UPSTREAM_RELEASE }}
+      DOWNSTREAM_MAIN:
+        description: "Downstream main branch"
+        value: ${{ jobs.setup.outputs.DOWNSTREAM_MAIN }}
+      DOWNSTREAM_DEVELOP:
+        description: "Downstream develop branch"
+        value: ${{ jobs.setup.outputs.DOWNSTREAM_DEVELOP }}
+      DOWNSTREAM_TESTING:
+        description: "Downstream testing branch"
+        value: ${{ jobs.setup.outputs.DOWNSTREAM_TESTING }}
+      COMMITS:
+        description: "Commits to cherry-pick"
+        value: ${{ jobs.setup.outputs.COMMITS }}
+
+jobs:
+  setup:
+    runs-on: ${{ inputs.platform }}
+    outputs:
+      CONTAINER_ID: ${{ steps.start_docker_container.outputs.CONTAINER_ID }}
+      issue_number: ${{ steps.find_or_create_issue.outputs.issue_number }}
+      rebase_approved: ${{ steps.check_comment.outputs.rebase_approved }}
+      UPSTREAM_MAIN: ${{ steps.extract_branches.outputs.UPSTREAM_MAIN }}
+      UPSTREAM_RELEASE: ${{ steps.extract_branches.outputs.UPSTREAM_RELEASE }}
+      DOWNSTREAM_MAIN: ${{ steps.extract_branches.outputs.DOWNSTREAM_MAIN }}
+      DOWNSTREAM_DEVELOP: ${{ steps.extract_branches.outputs.DOWNSTREAM_DEVELOP }}
+      DOWNSTREAM_TESTING: ${{ steps.extract_branches.outputs.DOWNSTREAM_TESTING }}
+      COMMITS: ${{ steps.extract_branches.outputs.COMMITS }}
+    
+    steps:
+      - name: Custom Git Checkout
+        run: |
+          REPO_URL="https://github.com/${{ github.repository }}"
+          TARGET_DIR="${{ github.workspace }}"
+          find . -name . -o -prune -exec sudo rm -rf -- {} +
+          cd $TARGET_DIR
+          git init
+          git config --global --add safe.directory $TARGET_DIR
+          if git remote | grep origin; then
+            git remote remove origin
+          fi
+          git remote add origin $REPO_URL
+          git fetch origin ${{ github.ref }}
+          git checkout FETCH_HEAD
+          git submodule update --init --recursive
+        shell: bash
+
+      - name: Start Docker container
+        id: start_docker_container
+        run: |
+          EXTERNAL_DIR="/tmp/docker_run_$(date +%s)"
+          mkdir -p $EXTERNAL_DIR
+          CONTAINER_ID=$(docker run -d -v $(pwd):/myworkspace ${{ inputs.docker_options }} --name my_container ${{ inputs.docker_image }} /bin/bash -c "tail -f /dev/null")
+          docker ps -a
+          docker exec -i my_container /bin/bash -c "ls; pwd"
+          echo "docker exec -i $CONTAINER_ID /bin/bash -c " > $EXTERNAL_DIR/run_docker.sh
+          echo "CONTAINER_ID=$CONTAINER_ID" >> $GITHUB_ENV
+          echo "CONTAINER_ID=$CONTAINER_ID" >> $GITHUB_OUTPUT
+          echo "EXTERNAL_DIR=$EXTERNAL_DIR" >> $GITHUB_ENV
+        shell: bash
+
+      # TODO Continue with other setup steps from the original workflow...
+      # Include Git setup, jq installation, branch extraction, etc.
