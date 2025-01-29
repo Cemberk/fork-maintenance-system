@@ -1,0 +1,101 @@
+name: Fork Maintenance System Workflow Main
+on:
+  workflow_call:
+    inputs:
+      github_token:
+        description: "GitHub token for authentication"
+        required: true
+        type: string
+      upstream_repo:
+        description: "URL of the upstream repository"
+        required: true
+        type: string
+      schedule_json:
+        description: "Schedule JSON containing upstream and downstream release branches"
+        required: true
+        type: string
+      pr_branch_prefix:
+        description: "Prefix for the PR branch name"
+        required: true
+        type: string
+      requirements_command:
+        description: "Command to install needed packages"
+        required: true
+        type: string
+      unit_test_command:
+        description: "Command to run unit tests"
+        required: true
+        type: string
+      performance_test_command:
+        description: "Command to run performance tests"
+        required: true
+        type: string
+      docker_image:
+        description: "Docker image to use"
+        required: true
+        type: string
+      docker_options:
+        description: "Docker run options"
+        required: true
+        type: string
+      platform:
+        description: "Runner platform (self-hosted)"
+        required: false
+        type: string
+        default: "ubuntu-latest"
+
+jobs:
+  setup:
+    uses: ./.github/workflows/setup.yml
+    with:
+      github_token: ${{ inputs.github_token }}
+      upstream_repo: ${{ inputs.upstream_repo }}
+      schedule_json: ${{ inputs.schedule_json }}
+      docker_image: ${{ inputs.docker_image }}
+      docker_options: ${{ inputs.docker_options }}
+      platform: ${{ inputs.platform }}
+      requirements_command: ${{ inputs.requirements_command }}
+
+  sync:
+    needs: setup
+    uses: ./.github/workflows/sync.yml
+    with:
+      github_token: ${{ inputs.github_token }}
+      unit_test_command: ${{ inputs.unit_test_command }}
+      performance_test_command: ${{ inputs.performance_test_command }}
+      platform: ${{ inputs.platform }}
+      container_id: ${{ needs.setup.outputs.CONTAINER_ID }}
+      issue_number: ${{ needs.setup.outputs.issue_number }}
+      rebase_approved: ${{ needs.setup.outputs.rebase_approved }}
+      downstream_main: ${{ needs.setup.outputs.DOWNSTREAM_MAIN }}
+      upstream_main: ${{ needs.setup.outputs.UPSTREAM_MAIN }}
+
+  develop:
+    needs: [setup, sync]
+    uses: ./.github/workflows/develop.yml
+    with:
+      github_token: ${{ inputs.github_token }}
+      unit_test_command: ${{ inputs.unit_test_command }}
+      performance_test_command: ${{ inputs.performance_test_command }}
+      platform: ${{ inputs.platform }}
+      container_id: ${{ needs.setup.outputs.CONTAINER_ID }}
+      issue_number: ${{ needs.setup.outputs.issue_number }}
+      rebase_approved: ${{ needs.setup.outputs.rebase_approved }}
+      downstream_develop: ${{ needs.setup.outputs.DOWNSTREAM_DEVELOP }}
+      downstream_main: ${{ needs.setup.outputs.DOWNSTREAM_MAIN }}
+      pr_branch_prefix: ${{ inputs.pr_branch_prefix }}
+
+  testing:
+    needs: [setup, develop]
+    uses: ./.github/workflows/testing.yml
+    with:
+      github_token: ${{ inputs.github_token }}
+      unit_test_command: ${{ inputs.unit_test_command }}
+      performance_test_command: ${{ inputs.performance_test_command }}
+      platform: ${{ inputs.platform }}
+      container_id: ${{ needs.setup.outputs.CONTAINER_ID }}
+      issue_number: ${{ needs.setup.outputs.issue_number }}
+      rebase_approved: ${{ needs.setup.outputs.rebase_approved }}
+      downstream_testing: ${{ needs.setup.outputs.DOWNSTREAM_TESTING }}
+      upstream_release: ${{ needs.setup.outputs.UPSTREAM_RELEASE }}
+      commits: ${{ needs.setup.outputs.COMMITS }}
