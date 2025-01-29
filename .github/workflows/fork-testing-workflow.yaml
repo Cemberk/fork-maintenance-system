@@ -1,0 +1,159 @@
+name: Testing Workflow
+on:
+  workflow_call:
+    inputs:
+      github_token:
+        required: true
+        type: string
+      unit_test_command:
+        required: true
+        type: string
+      performance_test_command:
+        required: true
+        type: string
+      platform:
+        required: false
+        type: string
+        default: "ubuntu-latest"
+      container_id:
+        required: true
+        type: string
+      issue_number:
+        required: true
+        type: string
+      rebase_approved:
+        required: true
+        type: string
+      downstream_testing:
+        required: true
+        type: string
+      upstream_release:
+        required: true
+        type: string
+      commits:
+        required: true
+        type: string
+
+jobs:
+  testing:
+    runs-on: ${{ inputs.platform }}
+    
+    steps:
+      - name: Create new Downstream release branch from latest release
+        run: |
+          git remote -v
+          git checkout ${{ inputs.upstream_release }}
+          git checkout -b ${{ inputs.downstream_testing }}
+          echo "BRANCH_NAME=${{ inputs.downstream_testing }}" >> $GITHUB_ENV
+        shell: bash
+
+      - name: Cherry-pick specific commits from develop to release
+        run: |
+          IFS=',' read -r -a commit_array <<< "${{ inputs.commits }}"
+          for commit in "${commit_array[@]}"; do
+            git cherry-pick $commit || true
+          done
+          
+          if git show-ref --verify --quiet refs/remotes/upstream/${{ inputs.upstream_release }}; then
+            UPSTREAM_REF="upstream/${{ inputs.upstream_release }}"
+          elif git show-ref --verify --quiet refs/tags/${{ inputs.upstream_release }}; then
+            UPSTREAM_REF="${{ inputs.upstream_release }}"
+          else
+            echo "Error: ${{ inputs.upstream_release }} is not a valid branch or tag."
+            exit 1
+          fi
+          
+          git diff ${{ env.BRANCH_NAME }}..$UPSTREAM_REF > test_diff.txt
+        shell: bash
+
+      - name: Push new testing branch
+        if: inputs.rebase_approved == 'true'
+        run: |
+          git push origin ${{ inputs.downstream_testing }} --force
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ inputs.github_token }}
+
+      - name: Run Docker Container for Install
+        run: |
+          docker exec my_container bash -c "cd /myworkspace; pip install -e ."
+        shell: bash
+
+      - name: Run Docker Container for Unit Tests
+        if: inputs.rebase_approved == 'false'
+        run: |
+          echo "Running unit tests inside Docker..."
+          docker exec my_container bash -c "cd /myworkspace; ${{ inputs.unit_test_command }} 2>&1 | tee /myworkspace/3_UNIT_TEST_RESULTS.txt"
+        shell: bash
+
+      - name: Run Docker Container for Performance Tests
+        if: inputs.rebase_approved == 'false'
+        run: |
+          echo "Running performance tests inside Docker..."
+          docker exec my_container bash -c "cd /myworkspace; ${{ inputs.performance_test_command }} 2>&1 | tee /myworkspace/3_PERF_TEST_RESULTS.txt"
+        shell: bash
+
+      - name: Append Test Results to Issue
+        if: inputs.rebase_approved == 'false'
+        run: |
+          REPO_OWNER=$(echo $GITHUB_REPOSITORY | cut -d'/' -f1)
+          REPO_NAME=$(echo $GITHUB_REPOSITORY | cut -d'/' -f2)
+          
+          COMPARE_URL="https://github.com/$REPO_OWNER/$REPO_NAME/compare/${{ inputs.downstream_testing }}...upstream/${{ inputs.upstream_release }}"
+          
+          echo "Aggregated Unit Test Summary:" > unit_test_summary.txt
+          find reports -name stats.txt -exec grep '^=' {} \; | awk '
+            /passed/ {passed += $2}
+            /failed/ {failed += $2}
+            /skipped/ {skipped += $2}
+            /deselected/ {deselected += $2}
+            /warnings/ {warnings += $2}
+            END {
+              print passed " passed, " failed " failed, " skipped " skipped, " deselected " deselected, " warnings " warnings"
+            }' >> unit_test_summary.txt
+
+          {
+            echo "### Testing Branch Comparison"
+            echo "Compare URL on Github: $COMPARE_URL"
+            echo ""
+            echo "### Unit Test Results for ${{ env.BRANCH_NAME }}"
+            echo "\`\`\`"
+            cat unit_test_summary.txt
+            echo "\`\`\`"
+            echo ""
+            echo "### Performance Test Results for ${{ env.BRANCH_NAME }}"
+            echo "\`\`\`"
+            cat 3_PERF_TEST_RESULTS.txt
+            echo "\`\`\`"
+          } > comment_body.txt
+
+          gh issue comment ${{ inputs.issue_number }} --body-file comment_body.txt --repo "$REPO_OWNER/$REPO_NAME"
+
+          # Cleanup
+          rm -rf 3_UNIT_TEST_RESULTS.txt
+          rm -rf 3_PERF_TEST_RESULTS.txt
+          rm -rf test_diff.txt
+          rm -rf unit_test_summary.txt
+          rm -rf comment_body.txt
+          sudo rm -rf reports/
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ inputs.github_token }}
+
+      - name: Clean up Docker Container
+        if: always()
+        run: |
+          docker stop my_container
+          docker rm my_container
+          TARGET_DIR="${{ github.workspace }}"
+          if [ -d $TARGET_DIR ]; then
+            cd $TARGET_DIR
+            git rebase --abort || true
+            git merge --abort || true
+            git reset --hard
+            sudo git clean -fdx
+            git branch -D ${{ inputs.downstream_testing }} || true
+            git branch -D tmp-${{ env.DOWNSTREAM_DEVELOP }}-* || true
+            rm -fr .git/rebase-merge .git/MERGE_HEAD
+          fi
+        shell: bash
