@@ -1,0 +1,123 @@
+name: Sync Workflow
+on:
+  workflow_call:
+    inputs:
+      github_token:
+        required: true
+        type: string
+      unit_test_command:
+        required: true
+        type: string
+      performance_test_command:
+        required: true
+        type: string
+      platform:
+        required: false
+        type: string
+        default: "ubuntu-latest"
+      container_id:
+        required: true
+        type: string
+      issue_number:
+        required: true
+        type: string
+      rebase_approved:
+        required: true
+        type: string
+      downstream_main:
+        required: true
+        type: string
+      upstream_main:
+        required: true
+        type: string
+
+jobs:
+  sync:
+    runs-on: ${{ inputs.platform }}
+    steps:
+      - name: Checkout and update downstream main
+        run: |
+          git checkout ${{ inputs.downstream_main }}
+          git pull origin ${{ inputs.downstream_main }}
+          echo "BRANCH_NAME=${{ inputs.downstream_main }}" >> $GITHUB_ENV
+          git diff origin/${{ inputs.downstream_main }}..upstream/${{ inputs.upstream_main }} > sync_diff.txt
+        shell: bash
+
+      - name: Rebase upstream main into downstream main
+        run: |
+          git status
+          git merge upstream/${{ inputs.upstream_main }} || true
+        shell: bash
+
+      - name: Push rebased downstream main
+        if: inputs.rebase_approved == 'true'
+        run: |
+          git push origin ${{ inputs.downstream_main }} --force
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ inputs.github_token }}
+
+      - name: Run Docker Container for Unit Tests
+        if: inputs.rebase_approved == 'false'
+        run: |
+          echo "Running unit tests inside Docker..."
+          docker exec my_container bash -c "cd /myworkspace; ${{ inputs.unit_test_command }} 2>&1 | tee /myworkspace/1_UNIT_TEST_RESULTS.txt"
+          echo "Unit Test Results: $(cat 1_UNIT_TEST_RESULTS.txt)"
+        shell: bash
+
+      - name: Run Docker Container for Performance Tests
+        if: inputs.rebase_approved == 'false'
+        run: |
+          echo "Running performance tests inside Docker..."
+          docker exec my_container bash -c "cd /myworkspace; ${{ inputs.performance_test_command }} 2>&1 | tee /myworkspace/1_PERF_TEST_RESULTS.txt"
+          echo "Performance Test Results: $(cat 1_PERF_TEST_RESULTS.txt)"
+        shell: bash
+
+      - name: Append Test Results to Issue
+        if: inputs.rebase_approved == 'false'
+        run: |
+          REPO_OWNER=$(echo $GITHUB_REPOSITORY | cut -d'/' -f1)
+          REPO_NAME=$(echo $GITHUB_REPOSITORY | cut -d'/' -f2)
+          
+          # Format test results and create comment
+          COMPARE_URL="https://github.com/$REPO_OWNER/$REPO_NAME/compare/${{ inputs.downstream_main }}...upstream/${{ inputs.upstream_main }}"
+          
+          echo "Aggregated Unit Test Summary:" > unit_test_summary.txt
+          find reports -name stats.txt -exec grep '^=' {} \; | awk '
+            /passed/ {passed += $2}
+            /failed/ {failed += $2}
+            /skipped/ {skipped += $2}
+            /deselected/ {deselected += $2}
+            /warnings/ {warnings += $2}
+            END {
+              print passed " passed, " failed " failed, " skipped " skipped, " deselected " deselected, " warnings " warnings"
+            }' >> unit_test_summary.txt
+
+          {
+            echo "### Sync Comparison"
+            echo "Compare URL on Github: $COMPARE_URL"
+            echo ""
+            echo "### Unit Test Results"
+            echo "\`\`\`"
+            cat unit_test_summary.txt
+            echo "\`\`\`"
+            echo ""
+            echo "### Performance Test Results"
+            echo "\`\`\`"
+            cat 1_PERF_TEST_RESULTS.txt
+            echo "\`\`\`"
+          } > comment_body.txt
+
+          # Post comment to issue
+          gh issue comment ${{ inputs.issue_number }} --body-file comment_body.txt --repo "$REPO_OWNER/$REPO_NAME"
+
+          # Cleanup
+          rm -rf 1_UNIT_TEST_RESULTS.txt
+          rm -rf 1_PERF_TEST_RESULTS.txt
+          rm -rf sync_diff.txt
+          rm -rf comment_body.txt
+          rm -rf unit_test_summary.txt
+          sudo rm -rf reports/
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ inputs.github_token }}
